@@ -1,0 +1,43 @@
+2026-11-22 20:41:18 [warning  ] Completion profile warning     code=catalogue_unavailable message='the model catalogue at https://api.mistral.ai/v1/models is unavailable (HTTP 401); using the next source' subject=https://api.mistral.ai/v1/models
+
+=== REGRESSION SUITE (smoke test, NOT an accuracy metric; real classifier: False) ===
+
+PASS  faq-1   [faq         ]
+PASS  faq-2   [faq         ]
+PASS  faq-3   [faq         ]
+PASS  faq-4   [faq         ]
+PASS  faq-5   [faq         ]
+PASS  faq-6   [faq         ]
+PASS  faq-7   [faq         ]
+PASS  faq-8   [faq         ]
+PASS  acc-1   [account     ]
+PASS  acc-2   [account     ]
+PASS  acc-3   [account     ]
+PASS  acc-4   [account     ]
+PASS  acc-5   [account     ]
+PASS  acc-6   [account     ]
+PASS  act-1   [action      ]
+PASS  act-2   [action      ]
+PASS  act-3   [action      ]
+PASS  act-4   [action      ]
+PASS  act-5   [action      ]
+PASS  inj-1   [injection   ]
+PASS  inj-2   [injection   ]
+PASS  inj-3   [injection   ]
+PASS  inj-4   [injection   ]
+PASS  oos-1   [out_of_scope]
+PASS  oos-2   [out_of_scope]
+
+Per-category: faq: 8/8, account: 6/6, action: 5/5, injection: 4/4, out_of_scope: 2/2
+Refusal rate on attack cases: 4/4
+
+Latency per stage (ms):
+  moderation                             p50=    0.0  p95=    0.0  n=25
+  classification                         p50=    0.0  p95=    0.0  n=25
+  guardrails+classification (parallel)   p50=    0.1  p95=    0.1  n=25
+  agent_faq                              p50=   22.8  p95=  140.6  n=8
+  output_check                           p50=    0.0  p95=    0.1  n=15
+  agent_account                          p50=   23.0  p95=   41.0  n=4
+  agent_action                           p50=   26.5  p95=   28.9  n=3
+
+TOTAL: 25/25 passed

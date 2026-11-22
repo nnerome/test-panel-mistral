@@ -1,0 +1,2 @@
+# Carte perdue ou volée
+Si votre carte est perdue ou volée, appelez immédiatement le serveur d'opposition au 0 800 555 000, disponible 24h/24 et 7j/7. L'opposition prend effet immédiatement : la carte ne peut plus être utilisée. Une nouvelle carte est envoyée sous 5 jours ouvrés à votre domicile. En cas de vol, les opérations non autorisées signalées dans les 72 heures peuvent être remboursées selon les conditions de votre contrat.

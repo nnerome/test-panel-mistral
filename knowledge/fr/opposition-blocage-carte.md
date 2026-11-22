@@ -1,0 +1,2 @@
+# Différence entre blocage et opposition
+Le blocage est temporaire et réversible : la carte est gelée, les paiements et retraits sont refusés, mais la carte peut être réactivée si vous la retrouvez. L'opposition est définitive : la carte est irrévocablement invalidée et une nouvelle carte est émise. En cas de perte avérée ou de vol, préférez l'opposition. Le blocage peut être demandé depuis votre application ou auprès d'un conseiller.

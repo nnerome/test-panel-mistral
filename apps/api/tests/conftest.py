@@ -9,6 +9,8 @@ from mistralai_capabilities.fastapi.hooks import FastAPIHooks
 
 telemetry_env.telemetry_enabled = False
 
+pytest_plugins = ["support.db"]
+
 
 def build_app(
     *,

@@ -1,0 +1,2 @@
+# Sécurité : messages frauduleux
+La banque ne vous demandera jamais par téléphone, SMS ou e-mail votre code secret, un mot de passe complet, ou la validation d'un virement que vous n'avez pas initié. Ne cliquez jamais sur un lien reçu par message : saisissez vous-même l'adresse du site. Signalez tout message suspect via la messagerie sécurisée. En cas de doute, appelez le numéro indiqué au dos de votre carte.

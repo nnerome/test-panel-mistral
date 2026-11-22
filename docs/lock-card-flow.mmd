@@ -1,0 +1,47 @@
+%% Full "Lock my credit card" flow, generated from the actual code paths:
+%% orchestrator.py (route intent=action) -> agents/tools.py propose_lock_card
+%% -> actions/service.py confirm_action -> bank/mock.py lock_card -> routers confirm.py
+sequenceDiagram
+    autonumber
+    actor U as Customer (browser)
+    participant W as web UI (apps/web)
+    participant C as POST /api/chat (routers/api/chat.py)
+    participant O as orchestrator.run_turn
+    participant G as guardrails + classifier (parallel, asyncio.gather)
+    participant A as action agent (agents/factory.make_action_agent)
+    participant T as tool propose_lock_card (agents/tools.py)
+    participant DB as Postgres (pending_actions)
+    participant P as POST /api/actions/{id}/confirm (routers .../confirm.py)
+    participant S as actions/service.confirm_action
+    participant B as MockBank.lock_card (bank/mock.py, idempotency ledger)
+    participant AU as audit_entries
+
+    U->>W: "Bloque ma carte de crédit"
+    W->>C: POST /api/chat (session cookie)
+    C->>O: run_turn(message, ctx)
+    par parallel stages (timed separately)
+        O->>G: moderation (classifiers.moderate) + injection patterns
+        O->>G: intent classification (small model)
+    end
+    O->>A: start_session(session_inputs={BankSessionInput}) + run(message)
+    A->>T: propose_lock_card(card_label="ending 9012")  %% schema has NO identity param
+    T->>DB: ownership check + INSERT pending_actions (UUID, session-bound, 5 min TTL)
+    T-->>A: pending action, masked card only
+    A-->>O: answer text + tool_calls
+    O-->>C: SSE: delta*, pending_action, turn(timings)
+    C-->>W: stream
+    W-->>U: confirmation card (masked card, effect, countdown, Confirmer/Annuler)
+    U->>W: click Confirmer
+    W->>P: POST /api/actions/{id}/confirm + X-Bnp-Client header (CSRF), SameSite=Strict cookie
+    P->>S: confirm_action(ctx, action_id, bank)
+    S->>DB: 1) action belongs to THIS session? 2) level==strong? 3) not expired? 4) card still owned?
+    S->>DB: 5) execution row exists? (PK = action id) -> replay: return stored result
+    S->>B: lock_card(card_id, idempotency_key="lock-card:{action_id}") (one retry max, same key)
+    B->>DB: bank_lock_events UNIQUE(idempotency_key) + cards.status='locked'
+    B-->>S: CardLockResult (masked)
+    S->>DB: INSERT card_lock_executions (PK action_id) — UNIQUE constraint defeats double-click
+    S->>AU: one audit entry (masked args, auth level, correlation id)
+    S-->>P: {executed: true, result}
+    P-->>W: 200 {action: confirmed, executed, result}
+    W-->>U: "Carte bloquée"
+    Note over P,S: Concurrent double-confirm: second INSERT hits UNIQUE(action_id) -> stored result returned, executed=false, ONE audit entry total

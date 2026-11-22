@@ -1,0 +1,2 @@
+# Horaires d'ouverture des agences
+Nos agences sont ouvertes du lundi au vendredi de 9h00 à 17h15. Certaines agences principales sont également ouvertes le samedi de 9h00 à 12h00, hors jours fériés. Les horaires spécifiques de votre agence sont indiqués dans votre espace client, rubrique « Mes agences ». Les retraits et paiements par carte restent possibles 24h/24 au distributeur, même quand l'agence est fermée.

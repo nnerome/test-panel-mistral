@@ -5,13 +5,16 @@ from env.api import env as http_env
 from env.logging import env as logging_env
 from env.mistral import env as mistral_env
 from env.telemetry import env as telemetry_env
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from mistralai_capabilities.fastapi.hooks import FastAPIHooks
 from mistralai_capabilities.fastapi.openapi import operation_id
 from mistralai_capabilities.fastapi.routing import create_api_router
 from utils.logging import configure_logging
 from utils.telemetry import configure_telemetry, shutdown_telemetry
+
+from api.domain.errors import DomainError
 
 
 def create_app(*, hooks: FastAPIHooks | None = None) -> FastAPI:
@@ -46,6 +49,12 @@ def create_app(*, hooks: FastAPIHooks | None = None) -> FastAPI:
     app.state.fastapi_hooks = manager
     manager.configure(app)
     app.include_router(create_api_router("api.routers"))
+
+    @app.exception_handler(DomainError)
+    async def _domain_error_handler(request: Request, exc: DomainError) -> JSONResponse:
+        # Domain errors carry their own status (ownership failures are 404 on purpose).
+        return JSONResponse(status_code=exc.status_code, content={"code": exc.code, "message": str(exc)})
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[http_env.cors_origin],

@@ -1,0 +1,1 @@
+Base de connaissance fictive à usage de démonstration uniquement. Toutes les valeurs (numéros, montants, horaires, tarifs) sont inventées et ne doivent pas être présentées comme les conditions réelles d'une banque.

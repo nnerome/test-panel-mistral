@@ -1,0 +1,2 @@
+# Voyager à l'étranger
+Les retraits hors zone euro sont facturés à 2,5 % du montant, avec un minimum de 3 €. Les paiements en devises sont gratuits dans la limite de 1 000 € par mois. Au terminal de paiement, si on vous propose de régler directement en euros, refusez et choisissez toujours la devise locale : le taux appliqué par le terminal est défavorable. Depuis l'étranger, l'assistance est joignable au +33 1 55 000 000.
