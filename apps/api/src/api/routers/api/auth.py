@@ -58,7 +58,7 @@ async def login(body: LoginRequest, response: Response) -> LoginResponse:
     """Log in as one of the 3 fictional demo customers; returns a new authenticated session cookie."""
     ctx = await service.login(get_session_maker(), body.email.strip(), body.password)
     _set_cookie(response, ctx.token)
-    return LoginResponse(session=await _session_info(ctx))
+    return LoginResponse(session=await _session_info(ctx), token=ctx.token)
 
 
 @router.post("/logout", operation_id="auth_logout")

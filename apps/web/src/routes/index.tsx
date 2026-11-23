@@ -66,11 +66,21 @@ interface Message {
 
 const CLIENT_HEADERS = { "X-Bnp-Client": "bnp-assistant-web" };
 
+// The session token from the login response, echoed as X-Bnp-Session on every call: behind the
+// Studio gateway the module's Set-Cookie may not reach the browser, so the cookie alone is not
+// enough there (locally, it is).
+let SESSION_TOKEN: string | null = null;
+
 async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const res = await fetch(path, {
     credentials: "same-origin",
     ...init,
-    headers: { "Content-Type": "application/json", ...CLIENT_HEADERS, ...(init.headers ?? {}) },
+    headers: {
+      "Content-Type": "application/json",
+      ...CLIENT_HEADERS,
+      ...(SESSION_TOKEN ? { "X-Bnp-Session": SESSION_TOKEN } : {}),
+      ...(init.headers ?? {}),
+    },
   });
   if (!res.ok) {
     let detail: unknown = null;
@@ -143,7 +153,9 @@ function ChatPage() {
   async function login(email: string) {
     setError(null);
     try {
-      await api("/api/auth/login", { method: "POST", body: JSON.stringify({ email, password: "demo1234" }) });
+      await api("/api/auth/login", { method: "POST", body: JSON.stringify({ email, password: "demo1234" }) }).then((res) => {
+        SESSION_TOKEN = (res as { token: string }).token;
+      });
       setSession(await api<SessionInfo>("/api/auth/me"));
     } catch (e) {
       setError(String(e));
@@ -152,6 +164,7 @@ function ChatPage() {
 
   async function logout() {
     await api("/api/auth/logout", { method: "POST", body: "{}" });
+    SESSION_TOKEN = null;
     setSession(await api<SessionInfo>("/api/auth/me"));
     setPending(null);
   }
@@ -193,7 +206,7 @@ function ChatPage() {
       const res = await fetch("/api/chat", {
         method: "POST",
         credentials: "same-origin",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(SESSION_TOKEN ? { "X-Bnp-Session": SESSION_TOKEN } : {}) },
         body: JSON.stringify({ message: text }),
       });
       if (!res.ok || !res.body) throw new Error(`chat HTTP ${res.status}`);
@@ -377,13 +390,18 @@ function ChatPage() {
                 <div className="whitespace-pre-wrap rounded-2xl rounded-tl-md border border-ink-100 bg-white px-3.5 py-2.5 text-sm shadow-card">
                   {m.text}
                   {m.sources && m.sources.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-1">
-                      {m.sources.map((s, j) => (
-                        <span key={j} className="chip" title={s.content}>
-                          source : {s.source} · score {s.score}
-                        </span>
-                      ))}
-                    </div>
+                    <details className="mt-2">
+                      <summary className="cursor-pointer text-[11px] font-semibold text-brand-700">
+                        Sources ({m.sources.length}) ▾ — citées dans le texte [n]
+                      </summary>
+                      <div className="mt-1.5 flex flex-wrap gap-1">
+                        {m.sources.map((s, j) => (
+                          <span key={j} className="chip" title={s.content}>
+                            [{j + 1}] {s.source} · score {s.score}
+                          </span>
+                        ))}
+                      </div>
+                    </details>
                   )}
                   {m.pending && (
                     <div className="mt-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-950">

@@ -201,3 +201,20 @@ async def test_demo_endpoints_404_when_demo_mode_off(http, seeded, monkeypatch) 
     assert res.status_code == 404
     res = await client.post("/api/demo/bank-flags", json={"latency_ms": 0, "failure_rate": 0}, headers=CLIENT_HEADERS)
     assert res.status_code == 404
+
+
+async def test_session_token_header_works_without_cookie(http, seeded) -> None:
+    """Deployed behind the Studio gateway, the module's Set-Cookie may not reach the browser;
+    the SPA then sends the login token back in X-Bnp-Session. Header alone must authenticate."""
+    client, app = http
+    res = await client.post("/api/auth/login", json={"email": "alice.demo@bank-fictive.fr", "password": "demo1234"})
+    assert res.status_code == 200
+    token = res.json()["token"]
+
+    # a client with an empty cookie jar: only the header carries the session
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as anon:
+        me = (await anon.get("/api/auth/me", headers={"X-Bnp-Session": token})).json()
+        assert me["level"] == "authenticated" and me["customer_id"] == str(seed.CUSTOMER_ALICE)
+        me_anon = (await anon.get("/api/auth/me")).json()
+        assert me_anon["level"] == "anonymous"

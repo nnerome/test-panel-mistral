@@ -30,3 +30,5 @@ données (UE), journalisation d'audit immuable (WORM), tests d'intrusion, revue 
 3. **Mode démo commutable + cookie Secure** (`env/assistant.py`, `routers/api/demo.py`,
    `routers/api/auth.py`, `routers/api/chat.py`) : `DEMO_MODE=false` éteint `/api/demo/*` et
    l'affichage du code OTP ; `SESSION_COOKIE_SECURE=true` en prod pose `Secure` sur le cookie.
+
+4. **Double transport du token de session** (`auth/service.py`, `auth/dependencies.py`, `routers/api/auth.py`, `routers/api/chat.py`, web `index.tsx`) : le login renvoie le token dans le corps ET pose le cookie `bnp_session` ; le SPA le renvoie en en-tête `X-Bnp-Session` à chaque appel. Motif : déployée derrière la gateway Studio, le `Set-Cookie` du module peut ne pas atteindre le navigateur (la gateway gère les cookies d'auth du domaine — constaté en prod : login 200 mais session restait anonyme). En local le cookie seul suffit. La posture CSRF ne change pas : `X-Bnp-Client` reste exigé sur les endpoints à état, et un formulaire cross-site ne peut poser ni l'un ni l'autre en-tête custom. Test : `test_session_token_header_works_without_cookie`.

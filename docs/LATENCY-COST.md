@@ -51,3 +51,13 @@ Soit **~10⁻³ $ par tour** avec large-4, ~4×10⁻⁴ $ avec small-latest. À 
    modèle entier par tour (l'étage `output_check` local est gratuit). Win : activer le
    *prompt caching* sur le préfixe system+KB de l'agent FAQ (cached input $0.07/M sur large-4,
    soit ~10× moins cher sur la part système des entrées).
+
+## Mise à jour 2026-11-23 (constaté en prod) : le chemin FAQ passe sur `mistral-small-latest`
+
+Mesure en déployé : un tour FAQ prenait 20-60 s (plusieurs appels à `search_knowledge_base` +
+plusieurs allers-retours LLM sur `mistral-large-4` + garde-fous). Corrections : `FAQ_MODEL`
+(défaut `mistral-small-latest`) pour l'agent FAQ, consigne « un seul appel à la recherche »,
+et le seed/index de la KB déplacé au démarrage (lifespan) au lieu de la première requête.
+Le chemin compte/action reste sur `mistral-large-4` (`ASSISTANT_MODEL`). Budget FAQ attendu :
+~1-2 s p50. Les sources affichées sont dédoublonnées et plafonnées à `KB_TOP_K` (5), repliées
+par défaut dans l'UI, citées en ligne `[n]` dans la réponse.

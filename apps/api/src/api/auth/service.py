@@ -20,6 +20,10 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
 from api.domain.errors import AuthRequiredError, DomainError, StepUpRequiredError
 
 SESSION_COOKIE = "bnp_session"
+# The Studio gateway owns the auth cookies of the app's public domain, so a module's Set-Cookie
+# may not reach the browser in a deployed app; the web frontend therefore also echoes the token
+# in this header after login. Both transports resolve to the same server-side session row.
+SESSION_HEADER = "X-Bnp-Session"
 LEVELS = ("anonymous", "authenticated", "strong")
 
 

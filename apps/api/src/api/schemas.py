@@ -29,6 +29,10 @@ class SessionInfo(StrictModel):
 
 class LoginResponse(StrictModel):
     session: SessionInfo
+    # The raw token, so the SPA can send it back in the X-Bnp-Session header: behind the Studio
+    # gateway the module's Set-Cookie may not reach the browser (the gateway owns the domain's
+    # cookies). The cookie is still set for direct/local access.
+    token: str
 
 
 class LogoutResponse(StrictModel):

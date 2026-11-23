@@ -133,3 +133,13 @@ async def test_stage_error_yields_message_and_human_offer(seeded) -> None:
 
     assert result.answer == BANK_ERROR_TEXT
     assert result.timings, "stages are still timed even on failure"
+
+
+def test_cap_sources_dedupes_and_caps_at_top_k() -> None:
+    from api.orchestrator import cap_sources
+
+    srcs = [{"source": f"doc{i % 2}.md", "chunk_index": i, "content": "x", "score": 0.9} for i in range(8)]
+    srcs.append({"source": "doc0.md", "chunk_index": 0, "content": "x", "score": 0.9})  # duplicate of the first
+    out = cap_sources(srcs, 5)
+    assert len(out) == 5
+    assert [s["chunk_index"] for s in out] == [0, 1, 2, 3, 4]  # first-seen order, duplicate dropped

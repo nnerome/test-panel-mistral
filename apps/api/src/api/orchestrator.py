@@ -104,6 +104,22 @@ class _Timer:
         self.timings.append(StageTiming(stage=stage, ms=round((time.perf_counter() - start) * 1000, 1)))
 
 
+def cap_sources(sources: list[dict], k: int) -> list[dict]:
+    """Dedupe by (source, chunk) in first-seen order, then cap at k: the UI shows at most k
+    sources (collapsed by default) and the answer cites them inline as [n] in the same order."""
+    seen: set = set()
+    out: list[dict] = []
+    for s in sources:
+        key = (s.get("source"), s.get("chunk_index"))
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(s)
+        if len(out) >= k:
+            break
+    return out
+
+
 async def _run_agent(agent, message: str, session_input: BankSessionInput, emit) -> tuple[str, list[dict]]:
     """Run one agent turn, streaming text deltas through `emit`. Returns (answer, tool_calls)."""
 
@@ -240,7 +256,7 @@ async def run_turn(
 
             result.answer = answer
             result.tool_calls = tool_calls
-            result.sources = collector.sources
+            result.sources = cap_sources(collector.sources, assistant_env.kb_top_k)
             result.pending_action = collector.pending_action
 
             # --- stage 4: output checks ---------------------------------------------

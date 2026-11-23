@@ -9,14 +9,22 @@ from typing import Annotated
 from env.assistant import env as assistant_env
 from fastapi import Depends, Header, HTTPException, Request
 
-from api.auth.service import SessionContext, resolve_session, SESSION_COOKIE
+from api.auth.service import SessionContext, resolve_session, SESSION_COOKIE, SESSION_HEADER
+
+
+def session_token(request: Request) -> str | None:
+    """The bearer token for this request: our X-Bnp-Session header first, then the cookie.
+
+    The web app echoes the token from the login response in the header because behind the
+    Studio gateway the module's Set-Cookie may not reach the browser (the gateway owns the
+    domain's auth cookies); locally the cookie alone works."""
+    return request.headers.get(SESSION_HEADER) or request.cookies.get(SESSION_COOKIE)
 
 
 async def session_from_request(request: Request) -> SessionContext | None:
-    token = request.cookies.get(SESSION_COOKIE)
     from db.engine import get_session_maker
 
-    return await resolve_session(get_session_maker(), token)
+    return await resolve_session(get_session_maker(), session_token(request))
 
 
 SessionDep = Annotated[SessionContext | None, Depends(session_from_request)]

@@ -14,6 +14,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 from mistralai_capabilities.fastapi.sse import event_stream_response, format_sse
 
+from api.auth.dependencies import session_token
 from api.auth.service import SESSION_COOKIE, create_session, resolve_session
 from env.assistant import env as assistant_env
 from api.orchestrator import OrchestratorDeps, run_turn
@@ -30,7 +31,7 @@ async def chat(body: ChatRequest, request: Request):
     session_maker = get_session_maker()
     await ensure_ready(runtime)
 
-    ctx = await resolve_session(session_maker, request.cookies.get(SESSION_COOKIE))
+    ctx = await resolve_session(session_maker, session_token(request))
     new_ctx = None
     if ctx is None:
         ctx = await create_session(session_maker)  # anonymous session, cookie set below

@@ -1,3 +1,4 @@
+import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
@@ -33,6 +34,15 @@ def create_app(*, hooks: FastAPIHooks | None = None) -> FastAPI:
     async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
         try:
             await manager.startup(app)
+            # Seed the fake data and index the KB at boot, so the first chat turn doesn't pay
+            # for it (the chat route still calls ensure_ready as a lock-guarded safety net).
+            from api.runtime import build_runtime, ensure_ready
+
+            app.state.bnp_runtime = build_runtime(app)
+            try:
+                await ensure_ready(app.state.bnp_runtime)
+            except Exception:
+                logging.getLogger("bnp.startup").exception("ensure_ready failed at boot; the first request retries it")
             yield
         finally:
             # Hooks first, so their shutdown logs still export; telemetry last, even if one raises.

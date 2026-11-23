@@ -25,24 +25,29 @@ class Runtime:
     ready_lock: asyncio.Lock
 
 
+def build_runtime(app) -> Runtime:
+    """Build the shared runtime and cache it on app.state (called once at startup, and lazily
+    from get_runtime for tests that don't run the lifespan)."""
+    flags = getattr(app.state, "bank_flags", None)
+    if flags is None:
+        flags = BankFlags.from_env()
+        app.state.bank_flags = flags
+    client = mistral_client()
+    return Runtime(
+        client=client,
+        # The flags provider reads app.state.bank_flags, so the demo toggles hit the adapter live.
+        bank=MockBank(flags_provider=lambda: app.state.bank_flags),
+        embedder=MistralEmbedder(client),
+        kb_root=Path(__file__).resolve().parents[4] / "knowledge",
+        ready_lock=asyncio.Lock(),
+    )
+
+
 def get_runtime(request: Request) -> Runtime:
     runtime = getattr(request.app.state, "bnp_runtime", None)
     if runtime is None:
-        app = request.app
-        flags = getattr(app.state, "bank_flags", None)
-        if flags is None:
-            flags = BankFlags.from_env()
-            app.state.bank_flags = flags
-        client = mistral_client()
-        runtime = Runtime(
-            client=client,
-            # The flags provider reads app.state.bank_flags, so the demo toggles hit the adapter live.
-            bank=MockBank(flags_provider=lambda: app.state.bank_flags),
-            embedder=MistralEmbedder(client),
-            kb_root=Path(__file__).resolve().parents[4] / "knowledge",
-            ready_lock=asyncio.Lock(),
-        )
-        app.state.bnp_runtime = runtime
+        runtime = build_runtime(request.app)
+        request.app.state.bnp_runtime = runtime
     return runtime
 
 

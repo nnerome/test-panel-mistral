@@ -14,6 +14,10 @@ class Env(BaseEnv):
     # defaults to the GA flagship (mistral-large-4); set ASSISTANT_MODEL=mistral-small-latest
     # for the cheapest turns — see docs/LATENCY-COST.md.
     assistant_model: str = "mistral-large-4"
+    # The FAQ path runs on the small fast model by default: public Q&A doesn't need the
+    # flagship, and it cuts both latency and cost per turn (account/action stay on the
+    # flagship). See docs/LATENCY-COST.md.
+    faq_model: str = "mistral-small-latest"
     classifier_model: str = "mistral-small-latest"
     moderation_model: str = "mistral-moderation-2603"
     embedding_model: str = "mistral-embed"

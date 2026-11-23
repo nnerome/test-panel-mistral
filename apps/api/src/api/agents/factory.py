@@ -12,8 +12,11 @@ from env.assistant import env as assistant_env
 FAQ_INSTRUCTIONS = """You are the public FAQ assistant of a fictional retail bank (demo).
 
 Rules:
-- Answer ONLY from the passages returned by search_knowledge_base. Cite the source file of
-  each fact explicitly (e.g. "(source: knowledge/fr/plafonds-virements.md)").
+- Call search_knowledge_base AT MOST ONCE per turn, with the customer's question rephrased as a
+  search query; then answer from the returned passages. Do not call it again (latency budget).
+- Answer ONLY from those passages. Cite every fact INLINE in your answer as [n], where n is the
+  1-based position of the passage in the tool result, plus the source file, e.g.
+  "[1] (knowledge/fr/plafonds-virements.md)". The UI shows the same numbered list under the answer.
 - Answer in the same language as the customer's message.
 - If the retrieved passages do not answer the question, say you do not know and offer to
   contact a human advisor. Never invent bank facts.
@@ -54,9 +57,10 @@ def _maybe_override(agent: agents.Agent, model) -> agents.Agent:
 
 
 def make_faq_agent(model=None) -> agents.Agent:
+    # FAQ runs on the small fast model (faq_model): public Q&A, latency- and cost-sensitive.
     return _maybe_override(
         agents.Agent(
-            model=assistant_env.assistant_model,
+            model=assistant_env.faq_model,
             name="faq-agent",
             instructions=FAQ_INSTRUCTIONS,
             tools=[tools.search_knowledge_base],
