@@ -107,3 +107,11 @@ Le bouton SMS, lui, répondait déjà 200 côté serveur (le bandeau code s'affi
 
 - Après un login ou un step-up SMS réussi, le chat **renvoie automatiquement** le message qui avait
   déclenché l'invite d'auth (`pendingResume`) : la conversation reprend sans ressaisie.
+
+## Redéploiement 2026-11-23 16:50 UTC — tag `297ce1e264d3-946cd4d8` (runs `01a20951-…`, `succeeded`)
+
+- Nouveau `POST /api/demo/reset` (mode démo uniquement + en-tête client) : débloque toutes les cartes
+  et supprime actions en attente, exécutions, ledger d'idempotence, OTP et audit. Bouton « Réinitialiser
+  la BDD (démo) » dans le panneau « Espace démo ». Appliqué en prod via `X-Api-Key` (la gateway accepte la
+  clé API en visiteur) : `cards_unlocked: 1` (carte d'Alice), 1 pending/exécution/lock event, 12 OTP,
+  2 audit supprimés ; second appel idempotent (0 partout). Tests : 114 passed / 3 skipped.
