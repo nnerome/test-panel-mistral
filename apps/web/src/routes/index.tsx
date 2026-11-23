@@ -326,6 +326,23 @@ function ChatPage() {
     }
   }
 
+  const [resetInfo, setResetInfo] = useState<string | null>(null);
+
+  async function resetDemo() {
+    setError(null);
+    setResetInfo(null);
+    try {
+      const res = await api<{ ok: boolean; cards_unlocked: number; deleted: Record<string, number> }>("/api/demo/reset", {
+        method: "POST",
+        body: "{}",
+      });
+      setResetInfo(`OK — cartes débloquées : ${res.cards_unlocked}, lignes supprimées : ${JSON.stringify(res.deleted)}`);
+      setPending(null);
+    } catch (e) {
+      setError(String(e));
+    }
+  }
+
   const remaining = pending ? Math.max(0, Math.floor((new Date(pending.expires_at).getTime() - now) / 1000)) : 0;
 
   return (
@@ -527,6 +544,10 @@ function ChatPage() {
               Appliquer
             </button>
             <span className="text-ink-500">actuel : {flags.latency_ms} ms / {flags.failure_rate}</span>
+            <button className="btn-ghost px-2.5! py-1! border-red-300! text-red-700!" onClick={resetDemo}>
+              Réinitialiser la BDD (démo)
+            </button>
+            {resetInfo && <span className="text-brand-700">{resetInfo}</span>}
           </div>
         </details>
 

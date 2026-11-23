@@ -1,4 +1,5 @@
-"""Demo-only routes: the login dropdown's customer list and the live bank-fault toggles."""
+"""Demo-only routes: the login dropdown's customer list, the live bank-fault toggles, and a
+database reset so a live demo can start from the seeded state again."""
 
 from typing import Annotated
 
@@ -6,10 +7,17 @@ from db import accessors as acc
 from db.engine import get_session_maker
 from env.assistant import env as assistant_env
 from fastapi import APIRouter, Depends, HTTPException, Request
+from sqlalchemy import delete, update
 
 from api.auth.dependencies import ClientHeaderDep
 from api.bank.mock import BankFlags
-from api.schemas import BankFlagsBody, BankFlagsView, DemoCustomer
+from api.schemas import BankFlagsBody, BankFlagsView, DemoCustomer, DemoResetResponse
+from db.models.audit_entry import AuditEntry
+from db.models.bank_lock_event import BankLockEvent
+from db.models.card import Card
+from db.models.card_lock_execution import CardLockExecution
+from db.models.otp_code import OtpCode
+from db.models.pending_action import PendingAction
 
 router = APIRouter(tags=["demo"])
 
@@ -61,3 +69,26 @@ async def set_bank_flags(body: BankFlagsBody, request: Request, _h: ClientHeader
         failure_rate=flags.failure_rate,
         defaults=BankFlagsBody(latency_ms=assistant_env.bank_latency_ms, failure_rate=assistant_env.bank_failure_rate),
     )
+
+
+@router.post("/reset", operation_id="demo_reset")
+async def reset_demo(_h: ClientHeaderDep, _d: None = Depends(_demo_only)) -> DemoResetResponse:
+    """Reset the demo state to the seeded one: unlock every card, drop pending actions, lock
+    executions, the adapter idempotency ledger, OTP codes and audit entries. Static seed rows
+    (customers, accounts, agencies, KB chunks) and live sessions are kept on purpose."""
+    async with get_session_maker()() as session:
+        cards_unlocked = (
+            await session.execute(update(Card).where(Card.status != "active").values(status="active", locked_at=None))
+        ).rowcount
+        deleted: dict[str, int] = {}
+        # Delete children before parents (card_lock_executions -> pending_actions).
+        for name, model in [
+            ("card_lock_executions", CardLockExecution),
+            ("pending_actions", PendingAction),
+            ("bank_lock_events", BankLockEvent),
+            ("otp_codes", OtpCode),
+            ("audit_entries", AuditEntry),
+        ]:
+            deleted[name] = (await session.execute(delete(model))).rowcount or 0
+        await session.commit()
+    return DemoResetResponse(ok=True, cards_unlocked=cards_unlocked or 0, deleted=deleted)

@@ -68,6 +68,12 @@ class BankFlagsView(StrictModel):
     defaults: BankFlagsBody
 
 
+class DemoResetResponse(StrictModel):
+    ok: bool
+    cards_unlocked: int
+    deleted: dict[str, int]
+
+
 class ChatRequest(StrictModel):
     message: str = Field(min_length=1, max_length=4000)
     # Optional UI language toggle: when set, the agent is asked to answer in that language

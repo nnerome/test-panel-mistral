@@ -241,3 +241,41 @@ async def test_chat_accepts_lang_toggle(http) -> None:
         assert response.status_code == 200
         events = await _read_sse(response)
     assert events["turn"][0]["turn"]["intent"] == "faq"
+
+
+async def test_demo_reset_unlocks_cards_and_clears_pending_actions(http, seeded) -> None:
+    client, app = http
+    res = await client.post("/api/auth/login", json={"email": "alice.demo@bank-fictive.fr", "password": "demo1234"})
+    token = res.json()["token"]
+    h = {"X-Bnp-Session": token, **CLIENT_HEADERS}
+    code = (await client.post("/api/auth/step-up", headers=h)).json()["demo_code"]
+    await client.post("/api/auth/step-up/verify", json={"code": code}, headers=h)
+
+    # create + confirm a pending action -> Alice's card is locked
+    import uuid as _uuid
+    from datetime import datetime, timedelta, timezone
+    async with seeded() as session:
+        me = (await client.get("/api/auth/me", headers=h)).json()
+        action = await acc.pending_actions.create(
+            session,
+            session_id=_uuid.UUID(me["session_id"]),
+            customer_id=seed.CUSTOMER_ALICE,
+            kind="lock_card",
+            card_id=seed.CARD_ALICE,
+            expires_at=datetime.now(timezone.utc) + timedelta(minutes=5),
+        )
+        await session.commit()
+        action_id = action.id
+    assert (await client.post(f"/api/actions/{action_id}/confirm", headers=h)).json()["executed"] is True
+    async with seeded() as session:
+        assert (await acc.cards.get_view(session, seed.CARD_ALICE)).status == "locked"
+
+    # demo reset: card unlocked again, pending/executions/ledger/audit cleared
+    res = await client.post("/api/demo/reset", headers=h)
+    assert res.status_code == 200
+    body = res.json()
+    assert body["ok"] is True and body["cards_unlocked"] >= 1
+    assert body["deleted"]["pending_actions"] >= 1 and body["deleted"]["card_lock_executions"] >= 1
+    async with seeded() as session:
+        assert (await acc.cards.get_view(session, seed.CARD_ALICE)).status == "active"
+        assert await acc.pending_actions.get(session, action_id) is None
