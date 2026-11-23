@@ -1,5 +1,36 @@
 @import "tailwindcss";
 
+/*
+ * Design tokens of the fictional demo bank used by this prototype. Deliberately NOT the official
+ * BNP Paribas identity: no real logo, typeface or exact brand values are shipped — the scenario is
+ * fictional and the UI labels itself as a demo. Tokens here, components below.
+ */
+@theme {
+  --color-brand-50: #eef7f2;
+  --color-brand-100: #d9eee2;
+  --color-brand-200: #b3ddc6;
+  --color-brand-300: #83c4a3;
+  --color-brand-400: #54a67f;
+  --color-brand-500: #338a64;
+  --color-brand-600: #1f7350;
+  --color-brand-700: #1a5d42;
+  --color-brand-800: #154a35;
+  --color-brand-900: #113b2b;
+  --color-brand-950: #07231a;
+
+  --color-ink-50: #f9fafb;
+  --color-ink-100: #f2f4f7;
+  --color-ink-300: #d0d5dd;
+  --color-ink-500: #667085;
+  --color-ink-700: #344054;
+  --color-ink-900: #101828;
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+  --shadow-card: 0 1px 2px rgb(16 24 40 / 0.05), 0 1px 3px rgb(16 24 40 / 0.08);
+  --radius-2xl: 1rem;
+}
+
 @layer base {
   html,
   body {
@@ -7,7 +38,43 @@
   }
 
   body {
-    @apply antialiased;
+    @apply bg-ink-50 font-sans text-ink-900 antialiased;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700 active:bg-brand-800 disabled:pointer-events-none disabled:opacity-50;
+  }
+  .btn-confirm {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg bg-brand-700 px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-brand-800 disabled:pointer-events-none disabled:opacity-50;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg border border-ink-300 bg-white px-3 py-1.5 text-sm font-medium text-ink-700 transition-colors hover:bg-ink-100 disabled:pointer-events-none disabled:opacity-50;
+  }
+  .btn-outline-light {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg border border-white/25 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-white/10;
+  }
+  .btn-advisor {
+    @apply inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-sm font-semibold text-brand-900 transition-colors hover:bg-brand-50;
+  }
+  .input {
+    @apply w-full rounded-lg border border-ink-300 bg-white px-3 py-2 text-sm text-ink-900 placeholder:text-ink-500 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200;
+  }
+  .select {
+    @apply rounded-lg border border-ink-300 bg-white px-2 py-1.5 text-xs text-ink-900 focus:border-brand-500 focus:outline-none;
+  }
+  .card {
+    @apply rounded-2xl border border-ink-100 bg-white shadow-card;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-full border border-brand-200 bg-brand-50 px-2 py-0.5 text-[11px] font-medium text-brand-800;
+  }
+  .badge {
+    @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold;
+  }
+  .notice {
+    @apply rounded-lg border px-3 py-2 text-sm;
   }
 }
 
