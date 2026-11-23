@@ -69,3 +69,11 @@ Corrections constatées en prod (login qui restait anonyme, latence FAQ 20-60 s,
 - **Latence FAQ** : agent FAQ sur `FAQ_MODEL=mistral-small-latest` (compte/action restent sur `ASSISTANT_MODEL`), consigne « un seul appel à `search_knowledge_base` », seed+index KB au démarrage (lifespan) et non à la première requête.
 - **Sources** : dédoublonnées et plafonnées à `KB_TOP_K`=5 côté orchestrateur (`cap_sources`), repliées par défaut dans l'UI (« Sources (n) ▾ »), citées en ligne `[n]` dans la réponse.
 - Tests : 109 passed / 3 skipped (API), 31/31 (web), build web OK.
+
+## Redéploiement 2026-11-23 14:14 UTC — tag `5c133378bc31-b1af58fc` (run api `01a208c1-ba5d-…`, `succeeded`)
+
+Correction constatée en prod : `POST /api/auth/logout` → **500 ForeignKeyViolationError** après un step-up
+(`otp_codes`/`pending_actions`/`audit_entries` référencent `bank_sessions` sans cascade). Le logout
+expire désormais la ligne (soft delete, `acc.sessions.expire`) au lieu de la supprimer — la piste d'audit
+conserve la session et plus de 500. Test de régression : `test_logout_after_step_up_soft_expires_session`.
+Le bouton SMS, lui, répondait déjà 200 côté serveur (le bandeau code s'affichait). Tests : 110 passed / 3 skipped.
