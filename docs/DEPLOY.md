@@ -102,3 +102,8 @@ Le bouton SMS, lui, répondait déjà 200 côté serveur (le bandeau code s'affi
 - Le formulaire OTP (code + champ + Valider) est déplacé juste au-dessus du composer, toujours visible :
   le bouton inline « Recevoir un code SMS » fonctionnait (step-up → 200 dans les logs) mais le code
   apparaissait en haut du chat, hors écran après l'auto-scroll.
+
+## Redéploiement 2026-11-23 16:00 UTC — tag `80ebe437ff23-383802b2` (web, `succeeded`, healthy 16:01)
+
+- Après un login ou un step-up SMS réussi, le chat **renvoie automatiquement** le message qui avait
+  déclenché l'invite d'auth (`pendingResume`) : la conversation reprend sans ressaisie.
