@@ -84,3 +84,10 @@ Le bouton SMS, lui, répondait déjà 200 côté serveur (le bandeau code s'affi
   compte à rebours arrêté, ligne « ✓ Action confirmée » à la place).
 - Le classifieur route « à quelle heure ouvre mon agence ? » vers `faq` (exemples explicites dans le
   prompt : les questions d'info publique formulées au possessif restent de la FAQ). Nouveau cas d'eval `faq-9`. Régression : 26/26.
+
+## Redéploiement 2026-11-23 15:22 UTC — tag `7a19b8a829e7-28f5799a` (run api `01a20900-9772-…`, `succeeded`; migration `68064a80683b` appliquée au boot, instance healthy 15:24)
+
+- **Questions personnelles = authentification requise** : le classifieur route « à quelle heure ouvre MON agence ? » vers `account_info` (anonyme → invite de connexion, aucune réponse). Connecté, l'agent compte répond via le nouvel outil `get_my_agency_hours` (agence résolue depuis la ligne client, aucun paramètre d'identité dans le schéma). Migration `68064a80683b` : `customers.agency_id` + backfill au seed pour les bases existantes. Cas d'eval `acc-7` (connecté → outil appelé) et `acc-8` (anonyme → `needs_login`).
+- **Mise en forme** : rendu markdown maison et sûr dans le chat (`apps/web/src/markdown.tsx`, aucun innerHTML : gras, italique, `code`, badges de citation [n], listes, paragraphes ; le HTML brut reste du texte). Tests `markdown.test.tsx`.
+- **Boutons inline dans le chat** : « Recevoir un code SMS » directement dans le message de step-up, « Parler à un conseiller » dans le message d'offre de relais humain.
+- Tests : 111 passed / 3 skipped (API), régression 27/27 (refus 4/4), web 34/34, build OK.
