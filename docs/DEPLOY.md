@@ -96,3 +96,9 @@ Le bouton SMS, lui, répondait déjà 200 côté serveur (le bandeau code s'affi
 
 - **Toggle FR/EN** dans le header du chat : `ChatRequest.lang` → l'orchestrateur ajoute au message de l'agent « answer in English / répondre en français » (`apply_lang`). Les questions anglaises récupèrent déjà les 3 pages EN de la KB (vérifié : « What are the transfer limits? » → `transfer-limits.md`). Cas d'eval `faq-10`. Tests : 113 passed API, régression 28/28, web 34/34.
 - Rappel du comportement voulu : les questions **générales** restent publiques (FAQ anonyme) ; seules les questions **personnelles** (« mon agence », « mon solde »…) exigent la connexion. « Quels prêts proposez-vous ? » n'a pas de page dans la KB (20 fichiers fixés par le brief) → l'agent répond « je ne sais pas + conseiller », comportement prévu hors-KB.
+
+## Redéploiement 2026-11-23 15:51 UTC — tag `6bb1d3424acc-8526b076` (web, `succeeded`, healthy 15:52)
+
+- Le formulaire OTP (code + champ + Valider) est déplacé juste au-dessus du composer, toujours visible :
+  le bouton inline « Recevoir un code SMS » fonctionnait (step-up → 200 dans les logs) mais le code
+  apparaissait en haut du chat, hors écran après l'auto-scroll.
