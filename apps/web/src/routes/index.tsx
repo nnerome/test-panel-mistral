@@ -128,6 +128,9 @@ function ChatPage() {
   const [error, setError] = useState<string | null>(null);
   const [lang, setLang] = useState<"fr" | "en">("fr");
   const [now, setNow] = useState(Date.now());
+  // The user message that triggered a needs_login / needs_step_up turn: re-sent automatically
+  // once the auth step succeeds, so the chat resumes the conversation by itself.
+  const [pendingResume, setPendingResume] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -160,6 +163,11 @@ function ChatPage() {
         SESSION_TOKEN = (res as { token: string }).token;
       });
       setSession(await api<SessionInfo>("/api/auth/me"));
+      const resume = pendingResume;
+      if (resume) {
+        setPendingResume(null);
+        await send(resume);
+      }
     } catch (e) {
       setError(String(e));
     }
@@ -195,6 +203,11 @@ function ChatPage() {
       setOtpPending(null);
       setOtpCode("");
       setSession(await api<SessionInfo>("/api/auth/me"));
+      const resume = pendingResume;
+      if (resume) {
+        setPendingResume(null);
+        await send(resume); // step-up done: the chat resumes the message that asked for it
+      }
     } catch (e) {
       setError(String(e));
     }
@@ -246,6 +259,8 @@ function ChatPage() {
             const turn = payload.turn as Turn;
             setLastTurn(turn);
             patch((m) => ({ ...m, turn }));
+            if (turn.needs_login || turn.needs_step_up) setPendingResume(text);
+            else setPendingResume(null);
           } else if (currentEvent === "error") {
             patch((m) => ({ ...m, text: m.text + `\n[erreur: ${payload.message}]` }));
           }
