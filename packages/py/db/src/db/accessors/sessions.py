@@ -36,3 +36,11 @@ async def touch(session: AsyncSession, row: BankSession, last_seen_at: datetime)
 
 async def delete(session: AsyncSession, row: BankSession) -> None:
     await session.delete(row)
+
+
+async def expire(session: AsyncSession, row: BankSession, when: datetime) -> None:
+    """Soft-delete: the row stays (otp_codes / pending_actions / audit_entries reference it by
+    FK without cascade, so a hard delete would violate them), but it resolves to None once
+    `expires_at` is in the past."""
+    row.expires_at = when
+    await session.flush()

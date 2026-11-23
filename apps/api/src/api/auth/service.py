@@ -84,10 +84,15 @@ async def resolve_session(session_maker: async_sessionmaker[AsyncSession], token
 
 
 async def destroy_session(session_maker: async_sessionmaker[AsyncSession], token: str) -> None:
+    """Log out by EXPIRING the session row (soft delete), never hard-deleting it: otp_codes,
+    pending_actions and audit_entries reference bank_sessions by FK without cascade, so a hard
+    delete raises ForeignKeyViolationError (500) as soon as any of them exists — seen in prod.
+    An expired row resolves to None everywhere, and the audit trail keeps the session id."""
     async with session_maker() as session:
         row = await acc.sessions.get_by_token_hash(session, hash_secret(token))
         if row is not None:
-            await acc.sessions.delete(session, row)
+            await acc.otps.invalidate_active_for_session(session, row.id, utcnow())
+            await acc.sessions.expire(session, row, utcnow())
             await session.commit()
 
 

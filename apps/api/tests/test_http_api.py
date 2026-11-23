@@ -218,3 +218,17 @@ async def test_session_token_header_works_without_cookie(http, seeded) -> None:
         assert me["level"] == "authenticated" and me["customer_id"] == str(seed.CUSTOMER_ALICE)
         me_anon = (await anon.get("/api/auth/me")).json()
         assert me_anon["level"] == "anonymous"
+
+
+async def test_logout_after_step_up_soft_expires_session(http, seeded) -> None:
+    """Regression (seen in prod): logout after a step-up 500'd with a ForeignKeyViolationError,
+    because otp_codes reference bank_sessions without cascade. Logout must expire, not delete."""
+    client, app = http
+    res = await client.post("/api/auth/login", json={"email": "alice.demo@bank-fictive.fr", "password": "demo1234"})
+    token = res.json()["token"]
+    h = {"X-Bnp-Session": token}
+    assert (await client.post("/api/auth/step-up", headers=h)).status_code == 200  # creates an otp row
+    res = await client.post("/api/auth/logout", headers=h)
+    assert res.status_code == 200
+    me = (await client.get("/api/auth/me", headers=h)).json()
+    assert me["level"] == "anonymous"  # expired row resolves to nothing, via header too

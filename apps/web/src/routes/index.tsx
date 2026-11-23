@@ -163,8 +163,11 @@ function ChatPage() {
   }
 
   async function logout() {
-    await api("/api/auth/logout", { method: "POST", body: "{}" });
-    SESSION_TOKEN = null;
+    try {
+      await api("/api/auth/logout", { method: "POST", body: "{}" });
+    } finally {
+      SESSION_TOKEN = null; // local logout even if the call itself failed
+    }
     setSession(await api<SessionInfo>("/api/auth/me"));
     setPending(null);
   }
