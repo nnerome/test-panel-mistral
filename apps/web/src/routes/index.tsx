@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 
+import { renderMarkdown } from "../markdown";
+
 /**
  * The demo chat page. Every decision stays server-side: this component only renders what the
  * API returns (streamed deltas, sources, pending action, per-stage timings) and sends the
@@ -398,8 +400,8 @@ function ChatPage() {
                   </span>
                   Assistant
                 </div>
-                <div className="whitespace-pre-wrap rounded-2xl rounded-tl-md border border-ink-100 bg-white px-3.5 py-2.5 text-sm shadow-card">
-                  {m.text}
+                <div className="rounded-2xl rounded-tl-md border border-ink-100 bg-white px-3.5 py-2.5 text-sm shadow-card">
+                  {renderMarkdown(m.text)}
                   {m.sources && m.sources.length > 0 && (
                     <details className="mt-2">
                       <summary className="cursor-pointer text-[11px] font-semibold text-brand-700">
@@ -438,17 +440,21 @@ function ChatPage() {
                   )}
                   {m.turn?.needs_login && (
                     <div className="notice mt-2 border-brand-300 bg-brand-50 px-2.5! py-1! text-xs text-brand-800">
-                      → connectez-vous (client fictif) pour continuer
+                      → connectez-vous avec le menu « Connexion client fictif » en haut pour continuer
                     </div>
                   )}
                   {m.turn?.needs_step_up && (
-                    <div className="notice mt-2 border-brand-300 bg-brand-50 px-2.5! py-1! text-xs text-brand-800">
-                      → montée en sécurité requise (bouton « Recevoir un code SMS »)
+                    <div className="mt-2">
+                      <button className="btn-primary px-2.5! py-1! text-xs!" onClick={stepUp}>
+                        Recevoir un code SMS (montée en sécurité)
+                      </button>
                     </div>
                   )}
                   {m.turn?.human_offer && (
-                    <div className="notice mt-2 border-ink-300 bg-ink-50 px-2.5! py-1! text-xs text-ink-700">
-                      → un conseiller peut prendre le relais (bouton en haut)
+                    <div className="mt-2">
+                      <button className="btn-ghost px-2.5! py-1! text-xs!" onClick={() => send("Je veux parler à un conseiller")}>
+                        Parler à un conseiller
+                      </button>
                     </div>
                   )}
                 </div>

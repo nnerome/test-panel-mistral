@@ -48,12 +48,23 @@ async def seed_if_empty(session_maker=None) -> None:
     async with session_maker() as session:
         count = len((await session.execute(select(Customer))).scalars().all())
         if count:
+            # Backfill for databases seeded before the agency link existed (deployed instances).
+            missing = (await session.execute(select(Customer).where(Customer.agency_id.is_(None)))).scalars().all()
+            by_email = {
+                "alice.demo@bank-fictive.fr": AGENCY_PARIS,
+                "bob.demo@bank-fictive.fr": AGENCY_LYON,
+                "carole.demo@bank-fictive.fr": AGENCY_BORDEAUX,
+            }
+            for row in missing:
+                row.agency_id = by_email.get(row.email)
+            if missing:
+                await session.commit()
             return
         now = datetime.now(timezone.utc)
         customers = [
-            Customer(id=CUSTOMER_ALICE, email="alice.demo@bank-fictive.fr", display_name="Alice Martin", password_hash=hash_secret(DEMO_PASSWORD)),
-            Customer(id=CUSTOMER_BOB, email="bob.demo@bank-fictive.fr", display_name="Bob Durand", password_hash=hash_secret(DEMO_PASSWORD)),
-            Customer(id=CUSTOMER_CAROLE, email="carole.demo@bank-fictive.fr", display_name="Carole Petit", password_hash=hash_secret(DEMO_PASSWORD)),
+            Customer(id=CUSTOMER_ALICE, email="alice.demo@bank-fictive.fr", display_name="Alice Martin", password_hash=hash_secret(DEMO_PASSWORD), agency_id=AGENCY_PARIS),
+            Customer(id=CUSTOMER_BOB, email="bob.demo@bank-fictive.fr", display_name="Bob Durand", password_hash=hash_secret(DEMO_PASSWORD), agency_id=AGENCY_LYON),
+            Customer(id=CUSTOMER_CAROLE, email="carole.demo@bank-fictive.fr", display_name="Carole Petit", password_hash=hash_secret(DEMO_PASSWORD), agency_id=AGENCY_BORDEAUX),
         ]
         accounts = [
             Account(id=ACCOUNT_ALICE, customer_id=CUSTOMER_ALICE, label="Compte courant", iban="FR7630004000010001234567001", iban_prefix="FR76", iban_last4="7001", balance_cents=254310, currency="EUR"),
@@ -74,10 +85,13 @@ async def seed_if_empty(session_maker=None) -> None:
             Agency(id=AGENCY_BORDEAUX, name="Agence Bordeaux Gambetta", city="Bordeaux", address="28 cours de l'Intendance, 33000 Bordeaux", hours_text="Lun-Ven : 9h00-17h15\nSamedi : 9h00-12h00"),
         ]
         # Flush in dependency order: without declared relationships the unit of work does
-        # not know accounts/cards depend on customers, and would insert in table-name order.
+        # not know accounts/cards depend on customers, and customers depend on agencies.
+        for row in agencies:
+            session.add(row)
+        await session.flush()
         for row in customers:
             session.add(row)
         await session.flush()
-        for row in [*accounts, *cards, *agencies]:
+        for row in [*accounts, *cards]:
             session.add(row)
         await session.commit()

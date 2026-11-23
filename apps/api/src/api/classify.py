@@ -8,12 +8,12 @@ INTENTS = ("faq", "account_info", "action", "human_request", "out_of_scope")
 
 _SYSTEM = (
     "You classify one message of a retail-banking chatbot into exactly one label:\n"
-    "- faq: public product/FAQ question answerable from the knowledge base — INCLUDING questions\n"
-    "  phrased personally, e.g. \"à quelle heure ouvre mon agence ?\", \"quels sont les frais de\n"
-    "  tenue de compte ?\", \"quel est le plafond d'un virement ?\" (general bank info is public;\n"
-    "  only the customer's own DATA is account_info)\n"
-    "- account_info: read-only question about the customer's own data only — balance, cards,\n"
-    "  transactions, \"mes comptes\", e.g. \"quel est mon solde ?\", \"liste mes cartes\"\n"
+    "- faq: GENERAL public product/FAQ question answerable from the knowledge base, e.g.\n"
+    "  \"quels sont les horaires d'ouverture des agences ?\", \"quels sont les frais de tenue\n"
+    "  de compte ?\", \"quel est le plafond d'un virement ?\"\n"
+    "- account_info: anything about the customer's OWN situation or data, even when it looks\n"
+    "  like a public topic — e.g. \"à quelle heure ouvre MON agence ?\", \"mon solde\", \"mes\n"
+    "  cartes\", \"mes opérations\". Personal phrasing means authenticated data, never public.\n"
     "- action: the customer wants to DO something (e.g. lock a card)\n"
     "- human_request: the customer asks for a human advisor\n"
     "- out_of_scope: not banking-related at all\n"

@@ -143,3 +143,22 @@ def test_cap_sources_dedupes_and_caps_at_top_k() -> None:
     out = cap_sources(srcs, 5)
     assert len(out) == 5
     assert [s["chunk_index"] for s in out] == [0, 1, 2, 3, 4]  # first-seen order, duplicate dropped
+
+
+async def test_get_my_agency_hours_returns_the_sessions_own_agency(seeded) -> None:
+    # "À quelle heure ouvre mon agence ?" is account data: the tool resolves the agency from the
+    # session's own customer row (no id in the schema), so no other agency can be reached.
+    ctx = await _ctx(seeded, "alice.demo@bank-fictive.fr")
+    session_input = BankSessionInput(
+        customer_id=str(seed.CUSTOMER_ALICE), session_id=str(ctx.session_id), auth_level=ctx.level, correlation_id="t"
+    )
+    from api.agents.deps import RunCollector, RunDeps, bind_run, reset_run
+    from db.engine import get_session_maker
+
+    token = bind_run(RunDeps(session_maker=get_session_maker(), bank=_bank(seeded), embedder=FakeEmbedder()), RunCollector())
+    try:
+        result = await tools.get_my_agency_hours(session_input)
+        assert result["name"] == "Agence Paris Centre"
+        assert any("9h00" in line for line in result["lines"])
+    finally:
+        reset_run(token)

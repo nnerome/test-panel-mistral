@@ -68,6 +68,23 @@ async def list_cards(
 
 
 @agents.tool(model_access="direct")
+async def get_my_agency_hours(
+    session: Annotated[BankSessionInput, agents.Depends()],
+) -> dict:
+    """Opening hours of the session customer's OWN agency. The agency id is resolved server-side
+    from the customer's own row — the schema carries no id parameter, and no other customer's
+    agency can ever be reached through it."""
+    deps = run_deps()
+    customer_id = _customer_uuid(session)
+    async with deps.session_maker() as db:
+        customer = await acc.customers.get(db, customer_id)
+        if customer is None or customer.agency_id is None:
+            raise agents.ToolError("no agency is linked to your profile in this demo")
+        hours = await deps.bank.get_agency_hours(customer.agency_id)
+    return hours.model_dump(mode="json")
+
+
+@agents.tool(model_access="direct")
 async def get_balance(
     session: Annotated[BankSessionInput, agents.Depends()],
     account_label: Annotated[
@@ -174,7 +191,7 @@ async def propose_lock_card(
     return pending
 
 
-__all__ = ["search_knowledge_base", "list_cards", "get_balance", "propose_lock_card", "resolve_card_label"]
+__all__ = ["search_knowledge_base", "list_cards", "get_balance", "get_my_agency_hours", "propose_lock_card", "resolve_card_label"]
 
 # Keep imports used by OwnershipError path explicit for readers.
 _ = OwnershipError
