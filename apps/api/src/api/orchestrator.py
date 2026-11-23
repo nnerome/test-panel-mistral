@@ -139,12 +139,22 @@ async def _run_agent(agent, message: str, session_input: BankSessionInput, emit)
     return (getattr(state, "text", "") or ""), []
 
 
+def apply_lang(message: str, lang: str | None) -> str:
+    """UI language toggle: when set, ask the agent explicitly to answer in that language."""
+    if lang == "en":
+        return message + "\n\n(The customer asked to be answered in English.)"
+    if lang == "fr":
+        return message + "\n\n(Le client demande une réponse en français.)"
+    return message
+
+
 async def run_turn(
     message: str,
     ctx: SessionContext | None,
     *,
     orch: OrchestratorDeps,
     emit: Callable[[dict], Awaitable[None]] | None = None,
+    lang: str | None = None,
 ) -> TurnResult:
     correlation_id = uuid.uuid4().hex
     timer = _Timer()
@@ -220,9 +230,10 @@ async def run_turn(
                 correlation_id=correlation_id,
             )
 
+            agent_message = apply_lang(message, lang)
             if intent == "faq":
                 start = time.perf_counter()
-                answer, tool_calls = await _run_agent(make_faq_agent(orch.agent_model), message, session_input, emit)
+                answer, tool_calls = await _run_agent(make_faq_agent(orch.agent_model), agent_message, session_input, emit)
                 timer.record("agent_faq", start)
             elif intent == "account_info":
                 if ctx is None or ctx.level == "anonymous" or ctx.customer_id is None:
@@ -230,7 +241,7 @@ async def run_turn(
                     result.answer = LOGIN_PROMPT_TEXT
                     return result
                 start = time.perf_counter()
-                answer, tool_calls = await _run_agent(make_account_agent(orch.agent_model), message, session_input, emit)
+                answer, tool_calls = await _run_agent(make_account_agent(orch.agent_model), agent_message, session_input, emit)
                 timer.record("agent_account", start)
             elif intent == "action":
                 if ctx is None or ctx.level == "anonymous" or ctx.customer_id is None:
@@ -243,7 +254,7 @@ async def run_turn(
                     result.answer = STEP_UP_TEXT
                     return result
                 start = time.perf_counter()
-                answer, tool_calls = await _run_agent(make_action_agent(orch.agent_model), message, session_input, emit)
+                answer, tool_calls = await _run_agent(make_action_agent(orch.agent_model), agent_message, session_input, emit)
                 timer.record("agent_action", start)
             elif intent == "human_request":
                 result.human_offer = True

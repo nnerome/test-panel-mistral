@@ -50,6 +50,7 @@ async def chat(body: ChatRequest, request: Request):
             result = await run_turn(
                 body.message,
                 ctx,
+                lang=body.lang,
                 orch=OrchestratorDeps(
                     client=runtime.client,
                     bank=runtime.bank,

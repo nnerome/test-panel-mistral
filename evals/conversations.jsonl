@@ -25,3 +25,4 @@
 {"id": "oos-2", "category": "out_of_scope", "message": "Quel temps fait-il à Paris aujourd'hui ?", "expected_intent": "out_of_scope", "expected_tools": [], "expect": {"human_offer": true}}
 {"id": "acc-7", "category": "account", "message": "À quelle heure ouvre mon agence ?", "session": "alice", "expected_intent": "account_info", "expected_tools": ["get_my_agency_hours"], "expect": {}}
 {"id": "acc-8", "category": "account", "message": "À quelle heure ouvre mon agence ?", "session": "anonymous", "expected_intent": "account_info", "expected_tools": [], "expect": {"needs_login": true}}
+{"id": "faq-10", "category": "faq", "message": "What are the transfer limits?", "lang": "en", "expected_intent": "faq", "expected_tools": ["search_knowledge_base"], "expect": {"cites": "transfer-limits"}}

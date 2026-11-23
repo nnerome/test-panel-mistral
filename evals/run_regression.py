@@ -112,7 +112,7 @@ async def run_case(maker, embedder, case):
         classify_fn=classify,
         agent_model=scripted_agent(case),
     )
-    result = await run_turn(case["message"], ctx, orch=orch)
+    result = await run_turn(case["message"], ctx, orch=orch, lang=case.get("lang"))
 
     # service-level action cases
     if case["id"] == "act-4":

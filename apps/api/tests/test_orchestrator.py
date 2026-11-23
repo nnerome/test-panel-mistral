@@ -162,3 +162,11 @@ async def test_get_my_agency_hours_returns_the_sessions_own_agency(seeded) -> No
         assert any("9h00" in line for line in result["lines"])
     finally:
         reset_run(token)
+
+
+def test_apply_lang_appends_the_language_request() -> None:
+    from api.orchestrator import apply_lang
+
+    assert apply_lang("Bonjour", None) == "Bonjour"
+    assert "English" in apply_lang("Hello", "en")
+    assert "français" in apply_lang("Bonjour", "fr")

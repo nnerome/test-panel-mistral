@@ -232,3 +232,12 @@ async def test_logout_after_step_up_soft_expires_session(http, seeded) -> None:
     assert res.status_code == 200
     me = (await client.get("/api/auth/me", headers=h)).json()
     assert me["level"] == "anonymous"  # expired row resolves to nothing, via header too
+
+
+async def test_chat_accepts_lang_toggle(http) -> None:
+    client, app = http
+    _scripted(app, "faq", [agents.testing.call("search_knowledge_base", query="x"), agents.testing.reply("In English.")])
+    async with client.stream("POST", "/api/chat", json={"message": "What are the transfer limits?", "lang": "en"}) as response:
+        assert response.status_code == 200
+        events = await _read_sse(response)
+    assert events["turn"][0]["turn"]["intent"] == "faq"

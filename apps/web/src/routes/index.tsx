@@ -126,6 +126,7 @@ function ChatPage() {
   const [latencyInput, setLatencyInput] = useState("0");
   const [failureInput, setFailureInput] = useState("0");
   const [error, setError] = useState<string | null>(null);
+  const [lang, setLang] = useState<"fr" | "en">("fr");
   const [now, setNow] = useState(Date.now());
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -212,7 +213,7 @@ function ChatPage() {
         method: "POST",
         credentials: "same-origin",
         headers: { "Content-Type": "application/json", ...(SESSION_TOKEN ? { "X-Bnp-Session": SESSION_TOKEN } : {}) },
-        body: JSON.stringify({ message: text }),
+        body: JSON.stringify({ message: text, lang }),
       });
       if (!res.ok || !res.body) throw new Error(`chat HTTP ${res.status}`);
       const reader = res.body.getReader();
@@ -333,6 +334,20 @@ function ChatPage() {
             {session?.customer_name ? ` · ${session.customer_name}` : ""}
           </span>
           <div className="ml-auto flex flex-wrap items-center gap-2">
+            <div className="flex overflow-hidden rounded-lg border border-white/25 text-xs font-semibold" title="Langue de réponse">
+              <button
+                className={lang === "fr" ? "bg-white px-2 py-1 text-brand-900" : "px-2 py-1 text-white hover:bg-white/10"}
+                onClick={() => setLang("fr")}
+              >
+                FR
+              </button>
+              <button
+                className={lang === "en" ? "bg-white px-2 py-1 text-brand-900" : "px-2 py-1 text-white hover:bg-white/10"}
+                onClick={() => setLang("en")}
+              >
+                EN
+              </button>
+            </div>
             <select
               className="select"
               defaultValue=""

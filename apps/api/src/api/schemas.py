@@ -70,6 +70,9 @@ class BankFlagsView(StrictModel):
 
 class ChatRequest(StrictModel):
     message: str = Field(min_length=1, max_length=4000)
+    # Optional UI language toggle: when set, the agent is asked to answer in that language
+    # (the agents otherwise answer in the customer's own language).
+    lang: Literal["fr", "en"] | None = None
 
 
 class PendingActionView(StrictModel):
