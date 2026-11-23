@@ -91,3 +91,8 @@ Le bouton SMS, lui, répondait déjà 200 côté serveur (le bandeau code s'affi
 - **Mise en forme** : rendu markdown maison et sûr dans le chat (`apps/web/src/markdown.tsx`, aucun innerHTML : gras, italique, `code`, badges de citation [n], listes, paragraphes ; le HTML brut reste du texte). Tests `markdown.test.tsx`.
 - **Boutons inline dans le chat** : « Recevoir un code SMS » directement dans le message de step-up, « Parler à un conseiller » dans le message d'offre de relais humain.
 - Tests : 111 passed / 3 skipped (API), régression 27/27 (refus 4/4), web 34/34, build OK.
+
+## Redéploiement 2026-11-23 15:33 UTC — tag `97849ff15da9-69bfed67` (runs `01a2090a-…`, `succeeded`, healthy 15:35)
+
+- **Toggle FR/EN** dans le header du chat : `ChatRequest.lang` → l'orchestrateur ajoute au message de l'agent « answer in English / répondre en français » (`apply_lang`). Les questions anglaises récupèrent déjà les 3 pages EN de la KB (vérifié : « What are the transfer limits? » → `transfer-limits.md`). Cas d'eval `faq-10`. Tests : 113 passed API, régression 28/28, web 34/34.
+- Rappel du comportement voulu : les questions **générales** restent publiques (FAQ anonyme) ; seules les questions **personnelles** (« mon agence », « mon solde »…) exigent la connexion. « Quels prêts proposez-vous ? » n'a pas de page dans la KB (20 fichiers fixés par le brief) → l'agent répond « je ne sais pas + conseiller », comportement prévu hors-KB.
