@@ -262,7 +262,12 @@ function ChatPage() {
         `/api/actions/${actionId}/confirm`,
         { method: "POST", body: "{}" },
       );
-      setPending((p) => (p ? { ...p, status: res.action.status } : p));
+      // Mark the pending card on its message as done (it disappears from the actionable list)
+      // and stop the global countdown; a result line is appended below.
+      setMessages((ms) =>
+        ms.map((m) => (m.pending?.action_id === actionId ? { ...m, pending: { ...m.pending, status: res.action.status } } : m)),
+      );
+      setPending(null);
       setMessages((ms) => [
         ...ms,
         {
@@ -281,6 +286,9 @@ function ChatPage() {
     setError(null);
     try {
       await api(`/api/actions/${actionId}/cancel`, { method: "POST", body: "{}" });
+      setMessages((ms) =>
+        ms.map((m) => (m.pending?.action_id === actionId ? { ...m, pending: { ...m.pending, status: "cancelled" } } : m)),
+      );
       setPending(null);
     } catch (e) {
       setError(String(e));
@@ -406,7 +414,12 @@ function ChatPage() {
                       </div>
                     </details>
                   )}
-                  {m.pending && (
+                  {m.pending && m.pending.status !== "pending" && (
+                    <div className="mt-2 rounded-lg border border-brand-200 bg-brand-50 px-2.5 py-1 text-xs text-brand-800">
+                      {m.pending.status === "confirmed" ? "✓ Action confirmée — la carte est bloquée." : "Action annulée."}
+                    </div>
+                  )}
+                  {m.pending && m.pending.status === "pending" && (
                     <div className="mt-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-950">
                       <div className="font-semibold">Action proposée — confirmation requise</div>
                       <div className="mt-0.5">
