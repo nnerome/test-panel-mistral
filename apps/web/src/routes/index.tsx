@@ -425,7 +425,7 @@ function ChatPage() {
                       <div className="mt-1.5 flex flex-wrap gap-1">
                         {m.sources.map((s, j) => (
                           <span key={j} className="chip" title={s.content}>
-                            [{j + 1}] {s.source} · score {s.score}
+                            [{j + 1}] {s.source}
                           </span>
                         ))}
                       </div>
