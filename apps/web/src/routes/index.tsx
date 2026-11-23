@@ -378,21 +378,6 @@ function ChatPage() {
       </header>
 
       <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-3 px-4 py-4">
-        {otpPending !== null && (
-          <div className="notice border-amber-300 bg-amber-50 text-amber-900">
-            Code de démonstration (démo, pas de vrai SMS) : <b className="font-mono">{otpPending}</b>
-            <input
-              className="input ml-2 inline-block w-28 px-2! py-1! text-sm"
-              placeholder="code à 6 chiffres"
-              value={otpCode}
-              onChange={(e) => setOtpCode(e.target.value)}
-            />
-            <button className="btn-primary ml-2 px-2.5! py-1! text-sm" onClick={verifyOtp}>
-              Valider
-            </button>
-          </div>
-        )}
-
         {error && <div className="notice border-red-300 bg-red-50 text-red-700">{error}</div>}
 
         <div ref={scrollRef} className="card flex min-h-64 flex-1 flex-col gap-3 overflow-y-auto p-4">
@@ -478,6 +463,21 @@ function ChatPage() {
           )}
           {busy && <div className="self-start text-sm text-ink-500">…</div>}
         </div>
+
+        {otpPending !== null && (
+          <div className="notice border-amber-300 bg-amber-50 text-amber-900">
+            Code de démonstration (démo, pas de vrai SMS) : <b className="font-mono">{otpPending}</b>
+            <input
+              className="input ml-2 inline-block w-28 px-2! py-1! text-sm"
+              placeholder="code à 6 chiffres"
+              value={otpCode}
+              onChange={(e) => setOtpCode(e.target.value)}
+            />
+            <button className="btn-primary ml-2 px-2.5! py-1! text-sm" onClick={verifyOtp}>
+              Valider
+            </button>
+          </div>
+        )}
 
         <form
           className="flex gap-2"
