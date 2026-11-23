@@ -77,3 +77,10 @@ Correction constatée en prod : `POST /api/auth/logout` → **500 ForeignKeyViol
 expire désormais la ligne (soft delete, `acc.sessions.expire`) au lieu de la supprimer — la piste d'audit
 conserve la session et plus de 500. Test de régression : `test_logout_after_step_up_soft_expires_session`.
 Le bouton SMS, lui, répondait déjà 200 côté serveur (le bandeau code s'affichait). Tests : 110 passed / 3 skipped.
+
+## Redéploiement 2026-11-23 14:35 UTC — tag `36c22b98919e-e7a8766a` (runs `01a208d5-…`, `succeeded`, instance healthy 14:37)
+
+- La carte d'action en attente disparaît maintenant après Confirmer/Annuler (statut posé sur le message,
+  compte à rebours arrêté, ligne « ✓ Action confirmée » à la place).
+- Le classifieur route « à quelle heure ouvre mon agence ? » vers `faq` (exemples explicites dans le
+  prompt : les questions d'info publique formulées au possessif restent de la FAQ). Nouveau cas d'eval `faq-9`. Régression : 26/26.
