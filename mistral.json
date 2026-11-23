@@ -2,6 +2,11 @@
   "schemaVersion": 2,
   "kind": "app",
   "name": "bnp-assistant",
+  "deployment": {
+    "organizationId": "91f5642c-49e7-41f9-9a91-b6918e198674",
+    "workspaceId": "244fa7ce-5de3-4bed-a246-12a4312205f8",
+    "appId": "01a20778-ff40-7353-a08b-b6280787a837"
+  },
   "modules": [
     {
       "type": "app",
