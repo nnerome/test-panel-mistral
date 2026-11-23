@@ -50,3 +50,13 @@ Evaluations (Trace Explorer Studio) ne sont PAS supposés disponibles** — ne r
 Rate limiting, verrouillage de compte, cycle de vie réel des tokens CSRF (ici : en-tête custom
 fixe + cookie SameSite=Strict), rotation des secrets, vraie KDF pour les mots de passe (démo :
 SHA-256), hébergement des données hors UE, etc.
+
+## Déploiement effectué (2026-11-23, depuis le bac à sable, `--from-disk` + clé API)
+
+- App **bnp-assistant** (`01a20778-ff40-7353-a08b-b6280787a837`), orga « Perso », workspace « Default Workspace », environnement `production`.
+- URL : https://432ce56e-bnp-assistant-productio-91f5642c-49e7-41f9-9a-1dd862ea.apps.mistral.run
+- Studio : https://console.mistral.ai/apps/01a20778-ff40-7353-a08b-b6280787a837 (visibilité actuelle : `workspace`)
+- Modules déployés (run 1, tag `1df4de790b17-756e6301`, statut `succeeded`) : `web` (`01a20779-0148-…`, route `/`), `api` (`01a20779-00ce-…`, route `/api`), `postgres` managé (`01a20779-0036-…`) — migration `a5bcbdadb361` appliquée au démarrage, instance api « healthy ».
+- Binding `deployment` commité dans `mistral.json` (commit local ; à pousser depuis une machine ayant accès au dépôt GitHub).
+- **Reste à faire dans Studio** : onglet Secrets de l'app → `MISTRAL_API_KEY` sur le module `api` (sinon les appels LLM répondent 401), puis redémarrer le module ; vérifier la visibilité (qui peut ouvrir l'URL).
+- Sonde non authentifiée de l'URL → `401 session_expired` (gateway) : l'app répond et n'est accessible qu'aux comptes autorisés par l'orga.
