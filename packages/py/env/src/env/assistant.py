@@ -18,7 +18,10 @@ class Env(BaseEnv):
     # flagship, and it cuts both latency and cost per turn (account/action stay on the
     # flagship). See docs/LATENCY-COST.md.
     faq_model: str = "mistral-small-latest"
-    classifier_model: str = "mistral-small-latest"
+    # Pinned to a dated snapshot, not the moving -latest alias: the alias rolled to a new
+    # snapshot and silently changed routing (faq -> action/account_info), which the regression
+    # suite caught. Pinning keeps intent classification reproducible; bump deliberately.
+    classifier_model: str = "mistral-small-2603"
     moderation_model: str = "mistral-moderation-2603"
     embedding_model: str = "mistral-embed"
 
