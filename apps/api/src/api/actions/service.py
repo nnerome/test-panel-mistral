@@ -2,7 +2,8 @@
 
 1. the pending action exists and belongs to THIS session (else 404, no existence leak);
 2. the session is at `strong` auth level;
-3. the action has not expired (5-minute TTL) and is still pending;
+3. a still-pending action has not expired (5-minute TTL); an action already confirmed is never
+   expired retroactively, so a late replay returns the stored result;
 4. the card still belongs to the session's customer (ownership re-check);
 5. idempotency: the execution table's primary key is the action id, so a concurrent or replayed
    confirm cannot execute twice — the stored result is returned instead;
@@ -58,9 +59,11 @@ async def confirm_action(
         # 2) strong auth level
         if ctx.level != "strong":
             raise StepUpRequiredError("strong authentication required to confirm")
-        # 3) expiry
+        # 3) expiry — only a PENDING action can expire. A confirmed action replayed after the
+        # TTL must fall through to the idempotency check (stored result), never be flipped to
+        # "expired" nor answered with a 409.
         now = utcnow()
-        if action.expires_at <= now:
+        if action.status == "pending" and action.expires_at <= now:
             await acc.pending_actions.set_status(session, action, "expired")
             await session.commit()
             raise ConflictError("action expired", code="action_expired")
@@ -84,7 +87,8 @@ async def confirm_action(
     async with session_maker() as session:
         action = await acc.pending_actions.get(session, action_id)
         if action.status != "pending":
-            raise ConflictError(f"action already {action.status}")
+            code = "action_expired" if action.status == "expired" else None
+            raise ConflictError(f"action already {action.status}", **({"code": code} if code else {}))
 
     idempotency_key = f"lock-card:{action.id}"
     try:
