@@ -36,6 +36,24 @@ def pattern_check(text: str) -> str | None:
     return None
 
 
+# Moderation categories that hard-refuse a turn. `law`, `financial` and `health` are deliberately
+# NOT blocking: for a retail-bank FAQ they fire on legitimate in-domain questions ("contester un
+# prélèvement", "plafond d'un virement", "fraude") which the knowledge base answers — out-of-scope
+# is the classifier's job. They stay visible in result.moderation.categories for observability.
+BLOCKING_MODERATION_CATEGORIES = frozenset(
+    {
+        "sexual",
+        "hate_and_discrimination",
+        "violence_and_threats",
+        "dangerous",
+        "criminal",
+        "selfharm",
+        "pii",
+        "jailbreaking",
+    }
+)
+
+
 @dataclass
 class GuardrailResult:
     passed: bool
@@ -57,7 +75,10 @@ async def moderate_text(client, text: str, model: str | None = None) -> dict:
         if result.categories:
             for name, violated in result.categories.items():
                 categories[name] = bool(violated) or categories.get(name, False)
-    return {"safe": not any(categories.values()), "categories": categories}
+    blocking = sorted(
+        c for c, v in categories.items() if v and c in BLOCKING_MODERATION_CATEGORIES
+    )
+    return {"safe": not blocking, "categories": categories, "blocking": blocking}
 
 
 async def run_input_guardrails(client=None, text: str = "", model: str | None = None) -> GuardrailResult:
