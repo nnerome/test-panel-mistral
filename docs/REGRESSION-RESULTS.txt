@@ -41,3 +41,9 @@ Latency per stage (ms):
   agent_action                           p50=   26.5  p95=   28.9  n=3
 
 TOTAL: 25/25 passed
+
+## 2026-11-24 (commit c00e522) — TOTAL: 28/28 passed, refusal 4/4
+
+- Détection d'une dérive du modèle : `mistral-small-latest` a roulé vers un nouveau snapshot ; 4 cas FAQ (`faq-5..8`, `cites=FAIL`) ont basculé action/account_info. Corrigé par le prompt explicite + pin `mistral-small-2603` (`f31ed02`) → 28/28.
+- La régression mocke la modération ; une sonde prod a révélé en plus que « contester un prélèvement » était refusé en prod (catégorie `law`) → allowlist de blocage dans `guardrails.py` (`c00e522`), re-sondé en prod : faq + sources OK.
+- Latence (ms) : classification p50=411 p95=604 n=28 ; agent_faq p50≈231 n=5 ; agent_account p50≈129 n=5 ; agent_action p50≈138 n=2 ; guardrails+classification parallèles p50=411.
