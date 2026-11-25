@@ -63,10 +63,19 @@ async def chat(body: ChatRequest, request: Request):
                 ),
                 emit=emit,
             )
-            # Telemetry never breaks the turn: record_turn swallows and logs its own errors.
+            # Telemetry + handoff never break the turn: record_turn swallows its own errors,
+            # handoff creation is guarded the same way.
             from api.turnlog import record_turn
 
             await record_turn(session_maker, result, ctx)
+            try:
+                from api.handoff.service import maybe_create_handoff
+
+                handoff_id = await maybe_create_handoff(session_maker, result, ctx)
+                if handoff_id:
+                    result.handoff_id = handoff_id
+            except Exception:
+                logging.getLogger("bnp.chat").exception("handoff creation failed")
             for source in result.sources:
                 await queue.put({"type": "sources", "source": source})
             if result.pending_action:

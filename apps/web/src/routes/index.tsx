@@ -81,6 +81,18 @@ interface MetricsView {
   method: string;
 }
 
+interface HandoffView {
+  id: string;
+  correlation_id: string;
+  reason: string;
+  intent: string;
+  auth_level: string;
+  summary: string;
+  pending_action_id: string | null;
+  status: string;
+  created_at: string;
+}
+
 interface Message {
   role: "user" | "assistant";
   text: string;
@@ -500,6 +512,27 @@ function ChatPage() {
     return x.n === 0 ? "—" : `p50 ${x.p50} / p95 ${x.p95} (n=${x.n})`;
   }
 
+  // Advisor queue (reserved route: demo mode or admin token).
+  const [handoffs, setHandoffs] = useState<HandoffView[] | null>(null);
+
+  async function refreshHandoffs() {
+    try {
+      const res = await api<{ count: number; items: HandoffView[] }>("/api/handoffs?status=open");
+      setHandoffs(res.items);
+    } catch (e) {
+      setError(String(e));
+    }
+  }
+
+  async function setHandoffStatus(id: string, status: "taken" | "closed") {
+    try {
+      await api(`/api/handoffs/${id}/status`, { method: "POST", body: JSON.stringify({ status }) });
+      await refreshHandoffs();
+    } catch (e) {
+      setError(String(e));
+    }
+  }
+
   const remaining = pending ? Math.max(0, Math.floor((new Date(pending.expires_at).getTime() - now) / 1000)) : 0;
 
   return (
@@ -646,6 +679,11 @@ function ChatPage() {
                       </button>
                     </div>
                   )}
+                  {m.turn?.handoff_id && (
+                    <div className="notice mt-2 border-brand-300 bg-brand-50 px-2.5! py-1! text-xs text-brand-800">
+                      Un conseiller a reçu votre demande avec le contexte (réf. {m.turn.handoff_id.slice(-8).toUpperCase()}).
+                    </div>
+                  )}
                   {m.turn && (
                     <FeedbackWidget
                       fb={fbByCorr[m.turn.correlation_id]}
@@ -752,6 +790,37 @@ function ChatPage() {
                 <div className="mt-1 text-[10px] text-ink-400">percentiles : méthode {metrics.method}</div>
               </div>
             )}
+          </div>
+        </details>
+
+        <details className="card px-3 py-2 text-xs text-ink-700">
+          <summary className="cursor-pointer font-medium">File conseiller — demandes ouvertes (route réservée)</summary>
+          <div className="mt-2">
+            <button className="btn-ghost px-2.5! py-1!" onClick={refreshHandoffs}>
+              Rafraîchir
+            </button>
+            {handoffs !== null && handoffs.length === 0 && <span className="ml-2 text-ink-500">aucune demande ouverte</span>}
+            <div className="mt-2 flex flex-col gap-2">
+              {handoffs?.map((h) => (
+                <div key={h.id} className="rounded-lg border border-ink-100 bg-ink-50 p-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="badge bg-brand-100 text-brand-800">{h.reason}</span>
+                    <span className="text-ink-500">
+                      {h.intent} · {h.auth_level} · réf {h.id.slice(-8).toUpperCase()}
+                    </span>
+                    <span className="ml-auto flex gap-1.5">
+                      <button className="btn-ghost px-2! py-0.5! text-[11px]!" onClick={() => setHandoffStatus(h.id, "taken")}>
+                        Prendre
+                      </button>
+                      <button className="btn-ghost px-2! py-0.5! text-[11px]!" onClick={() => setHandoffStatus(h.id, "closed")}>
+                        Clôturer
+                      </button>
+                    </span>
+                  </div>
+                  <div className="mt-1 text-ink-600">{h.summary}</div>
+                </div>
+              ))}
+            </div>
           </div>
         </details>
 

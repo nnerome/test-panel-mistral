@@ -87,6 +87,7 @@ class TurnResult(BaseModel):
     # the API returns usage, else null.
     model: str | None = None
     tokens: dict | None = None
+    handoff_id: str | None = None  # set by the chat route when a handoff request was created
     handoff_reason: str | None = None  # explicit handoff reason override (e.g. actions_disabled)
 
 

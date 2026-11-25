@@ -18,6 +18,7 @@ from db.models.bank_lock_event import BankLockEvent
 from db.models.card import Card
 from db.models.card_lock_execution import CardLockExecution
 from db.models.feedback import Feedback
+from db.models.handoff_request import HandoffRequest
 from db.models.otp_code import OtpCode
 from db.models.pending_action import PendingAction
 from db.models.turn_record import TurnRecord
@@ -101,9 +102,10 @@ async def reset_demo(_h: ClientHeaderDep, _d: None = Depends(_demo_only)) -> Dem
         ).rowcount
         deleted: dict[str, int] = {}
         # Delete children before parents (card_lock_executions -> pending_actions,
-        # feedback -> turn_records).
+        # handoff_requests -> pending_actions/turn_records, feedback -> turn_records).
         for name, model in [
             ("card_lock_executions", CardLockExecution),
+            ("handoff_requests", HandoffRequest),
             ("pending_actions", PendingAction),
             ("bank_lock_events", BankLockEvent),
             ("otp_codes", OtpCode),

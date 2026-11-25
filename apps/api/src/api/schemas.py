@@ -163,3 +163,31 @@ class FeatureFlagsBody(StrictModel):
 class FeatureFlagsView(StrictModel):
     actions_enabled: bool
     default_actions_enabled: bool
+
+
+# --- advisor handoff -----------------------------------------------------------
+
+HandoffStatus = Literal["open", "taken", "closed"]
+
+
+class HandoffStatusBody(StrictModel):
+    status: HandoffStatus
+
+
+class HandoffView(StrictModel):
+    id: uuid.UUID
+    correlation_id: str
+    session_id: uuid.UUID
+    customer_id: uuid.UUID | None
+    reason: str
+    intent: str
+    auth_level: str
+    summary: str
+    pending_action_id: uuid.UUID | None
+    status: str
+    created_at: datetime
+
+
+class HandoffList(StrictModel):
+    count: int
+    items: list[HandoffView]

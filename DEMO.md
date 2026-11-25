@@ -56,3 +56,20 @@ la page Settings de la console n'expose aucun sélecteur de visibilité (capture
 General + Delete app + boutons « Publish to Vibe » / « Open app »). Conclusion : l'URL prod n'est
 ouvrable qu'aux **membres du workspace** (invitation Admin → Members) ou via le **catalogue Vibe**
 (publié ✅) ; anonyme → 401 `session_expired` tant que la visibilité reste `workspace`.
+
+## Scénario 2 minutes — feedback, métriques, kill switch, conseiller (2026-11-25)
+
+1. **Pouce bas** : poser une question FAQ, attendre la réponse, cliquer 👎 sous la réponse →
+   choisir un motif (ex. « Réponse erronée") + commentaire éventuel → « Envoyer » → l'UI affiche
+   « Merci pour votre retour ✓ ». Le commentaire est scrubbé côté serveur (un numéro de carte de
+   16 chiffres qu'on y collerait ressort masqué `****`).
+2. **Métriques** : panneau démo « Métriques agrégées (60 min) » → « Rafraîchir » → tours, taux de
+   refus/escalade, p50/p95 par étape (nearest-rank), taux de pouces bas, compteurs d'actions.
+3. **Couper les actions** : panneau démo → « Couper les actions » → poser « Bloque ma carte »
+   (connecté + strong) → réponse « opération momentanément indisponible » **sans aucun appel
+   d'agent d'action** (voir les timings : aucun stage `agent_action`) ; la confirmation d'une action
+   en attente est refusée `actions_disabled` ; « Annuler » marche toujours. Bouton « Réactiver ».
+4. **Demande de conseiller** : « Je veux parler à un conseiller » → la réponse affiche « Un conseiller
+   a reçu votre demande avec le contexte (réf. XXXX) » ; panneau « File conseiller » → la demande
+   apparaît avec son résumé déterministe (motif, intention, niveau d'auth, action en attente masquée)
+   → « Prendre » puis « Clôturer ».
