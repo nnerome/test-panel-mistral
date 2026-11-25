@@ -151,3 +151,16 @@ Le bouton SMS, lui, répondait déjà 200 côté serveur (le bandeau code s'affi
 
 - Push `bbbbc10..c31ba04` → main. Empty-chat hint now bilingual via `EMPTY_HINT[lang]` (FR « …gérer vos opérations courantes. » / EN « Ask a public question (FAQ) or sign in to manage your everyday banking operations. »), follows the FR/EN toggle. Web tests 35/35 (new toggle test).
 - Sondes prod : health 200 ; bundle servi `/assets/routes-mQQwoLSl.js` contient les 2 nouveaux textes et plus l'ancien ; tour FAQ 200 `intent=faq` ; `POST /api/demo/reset` sans jeton → 404 (protection active).
+
+
+## Déploiement 2026-11-25 19:47 UTC — commit `389f387` (i18n FR/EN complet, intention solde EN, patterns d'injection élargis) — runs api `01a2143f-3e6b-764e-b828-66e4c035d364`, web `01a2143f-3e7e-75b9-a90a-579fe4b39b78`, healthy
+
+- Push `e0d94b1..389f387` → main (dépôt privé). Changements : toute l'UI web via `apps/web/src/i18n.ts` (FR/EN, y compris placeholder du composer, OTP, panneau démo) ; classifieur : « what is my balance? » → `account_info` ; garde-fous : « ignore … instructions » avec n'importe quelle série de qualificatifs + ciblage inter-client (« someone else's card », « carte de quelqu'un d'autre ») ; evals : réponses scriptées bilingues + cas acc-9/inj-5/inj-6.
+- Tests avant push : API 114 passed, web 35/35, régression 31/31 (refus 6/6). Note : un bug introduit dans le prompt du classifieur (chaîne devenue tuple) a été trouvé par la régression (6/31) et corrigé avant push.
+- Sondes prod : health 200 ; FAQ FR → réponse avec citation [1] + sources ; INJ-EN → `refused=true, human_offer=true, pending_action=null` ; « What is my balance? » anonyme → `intent=account_info, needs_login=true` ; FAQ EN → réponse en anglais avec sources EN.
+
+## Déploiement 2026-11-25 19:58 UTC — commit `c115562` (réponses figées bilingues côté serveur) — runs api `01a21445-ffbe-7376-86da-85c910221063`, web `01a21445-ffcf-75c9-84d2-4733778cb5be`, healthy
+
+- Push `389f387..c115562` → main. Changements : les textes figés de l'orchestrateur (refus, invitation à se connecter, montée en sécurité, conseiller, hors sujet, panne technique, actions coupées) suivent désormais `lang=fr/en` de la requête (`canned()` + `_TEXTS_EN`) ; la version EN du contact conseiller cite `knowledge/en/contact-advisor.md`. Test `test_canned_answers_follow_request_language`.
+- Tests avant push : API 115 passed, web 35/35, régression 31/31 (refus 6/6).
+- Sondes prod (X-Api-Key) : health 200 (`mistral.configured=true`, `database.reachable=true`) ; INJ-EN → refus **en anglais**, `pending_action=null` ; « What is my balance? » anonyme EN → `needs_login=true`, prompt anglais ; « parler à un conseiller » FR → réponse FR + `handoff_id` créé ; « I want to talk to an advisor » EN → réponse EN ; hors-sujet EN → réponse EN ; bundle web `routes-gZHxr99f.js` contient les chaînes FR **et** EN (« Ask a public question… », « Posez une question publique… », « Sign out », « Talk to an advisor »).
