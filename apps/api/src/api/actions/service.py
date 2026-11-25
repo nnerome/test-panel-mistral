@@ -2,6 +2,8 @@
 
 1. the pending action exists and belongs to THIS session (else 404, no existence leak);
 2. the session is at `strong` auth level;
+2b. the actions kill switch is ON (else ConflictError actions_disabled: nothing executes and
+    the action's status is untouched — cancel stays possible);
 3. a still-pending action has not expired (5-minute TTL); an action already confirmed is never
    expired retroactively, so a late replay returns the stored result;
 4. the card still belongs to the session's customer (ownership re-check);
@@ -13,10 +15,12 @@
 import json
 import logging
 import uuid
+from collections.abc import Callable
 from datetime import datetime, timezone
 
 from db import accessors as acc
 from db.engine import get_session_maker
+from env.assistant import env as assistant_env
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
 
@@ -47,6 +51,7 @@ async def confirm_action(
     ctx,
     action_id: uuid.UUID,
     bank: Bank,
+    actions_enabled_fn: Callable[[], bool] | None = None,
 ) -> dict:
     """Execute a pending action exactly once. Returns {'action': view, 'executed': bool, 'result': dict}."""
     from api.audit.service import log_action
@@ -59,6 +64,11 @@ async def confirm_action(
         # 2) strong auth level
         if ctx.level != "strong":
             raise StepUpRequiredError("strong authentication required to confirm")
+        # 2b) kill switch — even an already-pending action is refused while actions are disabled:
+        # nothing executes and the action's status is left untouched (cancel stays possible)
+        enabled_fn = actions_enabled_fn or (lambda: assistant_env.actions_enabled)
+        if not enabled_fn():
+            raise ConflictError("actions disabled", code="actions_disabled")
         # 3) expiry — only a PENDING action can expire. A confirmed action replayed after the
         # TTL must fall through to the idempotency check (stored result), never be flipped to
         # "expired" nor answered with a 409.

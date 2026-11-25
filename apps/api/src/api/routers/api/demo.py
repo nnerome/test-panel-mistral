@@ -11,7 +11,8 @@ from sqlalchemy import delete, update
 
 from api.auth.dependencies import ClientHeaderDep
 from api.bank.mock import BankFlags
-from api.schemas import BankFlagsBody, BankFlagsView, DemoCustomer, DemoResetResponse
+from api.flags import FeatureFlags, feature_flags_holder
+from api.schemas import BankFlagsBody, BankFlagsView, DemoCustomer, DemoResetResponse, FeatureFlagsBody, FeatureFlagsView
 from db.models.audit_entry import AuditEntry
 from db.models.bank_lock_event import BankLockEvent
 from db.models.card import Card
@@ -71,6 +72,22 @@ async def set_bank_flags(body: BankFlagsBody, request: Request, _h: ClientHeader
         failure_rate=flags.failure_rate,
         defaults=BankFlagsBody(latency_ms=assistant_env.bank_latency_ms, failure_rate=assistant_env.bank_failure_rate),
     )
+
+
+@router.get("/feature-flags", operation_id="demo_feature_flags_get")
+async def get_feature_flags(request: Request, _: None = Depends(_demo_only)) -> FeatureFlagsView:
+    """Current runtime feature flags (the actions kill switch)."""
+    flags = feature_flags_holder(request)
+    return FeatureFlagsView(actions_enabled=flags.actions_enabled, default_actions_enabled=assistant_env.actions_enabled)
+
+
+@router.post("/feature-flags", operation_id="demo_feature_flags_set")
+async def set_feature_flags(body: FeatureFlagsBody, request: Request, _h: ClientHeaderDep, _d: None = Depends(_demo_only)) -> FeatureFlagsView:
+    """Hot-toggle the actions kill switch live (demo only). When off, no action agent runs and
+    confirm refuses with actions_disabled; cancel stays possible."""
+    flags = feature_flags_holder(request)
+    flags.actions_enabled = body.actions_enabled
+    return FeatureFlagsView(actions_enabled=flags.actions_enabled, default_actions_enabled=assistant_env.actions_enabled)
 
 
 @router.post("/reset", operation_id="demo_reset")

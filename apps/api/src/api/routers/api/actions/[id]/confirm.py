@@ -12,6 +12,7 @@ from fastapi import APIRouter, Path
 
 from api.actions.service import confirm_action
 from api.auth.dependencies import ClientHeaderDep, StrongDep
+from api.flags import feature_flags_holder
 from api.runtime import get_runtime
 from api.schemas import ConfirmResponse, PendingActionView
 from fastapi import Request
@@ -28,7 +29,13 @@ async def confirm(
 ) -> ConfirmResponse:
     """Confirm and execute a pending action of this session (strong auth + client header required)."""
     runtime = get_runtime(request)
-    outcome = await confirm_action(get_session_maker(), ctx=ctx, action_id=id, bank=runtime.bank)
+    outcome = await confirm_action(
+        get_session_maker(),
+        ctx=ctx,
+        action_id=id,
+        bank=runtime.bank,
+        actions_enabled_fn=lambda: feature_flags_holder(request).actions_enabled,
+    )
     action = outcome["action"]
     return ConfirmResponse(
         action=PendingActionView(

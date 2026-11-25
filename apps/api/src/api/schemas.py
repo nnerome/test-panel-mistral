@@ -151,3 +151,15 @@ class MetricsView(StrictModel):
     end_to_end_ms: StageLatency
     actions: dict[str, int]
     method: str  # percentile method, "nearest-rank"
+
+
+# --- runtime feature flags (kill switch) --------------------------------------
+
+
+class FeatureFlagsBody(StrictModel):
+    actions_enabled: bool
+
+
+class FeatureFlagsView(StrictModel):
+    actions_enabled: bool
+    default_actions_enabled: bool

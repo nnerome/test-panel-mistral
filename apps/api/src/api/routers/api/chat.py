@@ -48,6 +48,8 @@ async def chat(body: ChatRequest, request: Request):
         try:
             # Tests inject scripted stage implementations through app.state.bnp_orch_overrides.
             overrides = dict(getattr(request.app.state, "bnp_orch_overrides", None) or {})
+            from api.flags import feature_flags_holder
+
             result = await run_turn(
                 body.message,
                 ctx,
@@ -56,6 +58,7 @@ async def chat(body: ChatRequest, request: Request):
                     client=runtime.client,
                     bank=runtime.bank,
                     embedder=runtime.embedder,
+                    actions_enabled_fn=lambda: feature_flags_holder(request).actions_enabled,
                     **overrides,
                 ),
                 emit=emit,

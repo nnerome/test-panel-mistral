@@ -463,6 +463,26 @@ function ChatPage() {
 
   // Aggregate metrics over the last hour (reserved route: demo mode or admin token).
   const [metrics, setMetrics] = useState<MetricsView | null>(null);
+  // Actions kill switch (runtime feature flag, hot-toggled via /api/demo/feature-flags).
+  const [actionsEnabled, setActionsEnabled] = useState(true);
+
+  useEffect(() => {
+    api<{ actions_enabled: boolean }>("/api/demo/feature-flags")
+      .then((f) => setActionsEnabled(f.actions_enabled))
+      .catch(() => {});
+  }, []);
+
+  async function toggleActions() {
+    try {
+      const f = await api<{ actions_enabled: boolean; default_actions_enabled: boolean }>("/api/demo/feature-flags", {
+        method: "POST",
+        body: JSON.stringify({ actions_enabled: !actionsEnabled }),
+      });
+      setActionsEnabled(f.actions_enabled);
+    } catch (e) {
+      setError(String(e));
+    }
+  }
 
   async function refreshMetrics() {
     try {
@@ -694,6 +714,14 @@ function ChatPage() {
             <button className="btn-ghost px-2.5! py-1! border-red-300! text-red-700!" onClick={resetDemo}>
               Réinitialiser la BDD (démo)
             </button>
+            <button
+              className={`btn-ghost px-2.5! py-1! ${actionsEnabled ? "border-red-300! text-red-700!" : "border-green-400! text-green-700!"}`}
+              onClick={toggleActions}
+              title="Kill switch : aucune action ne s'exécute tant qu'il est coupé"
+            >
+              {actionsEnabled ? "Couper les actions" : "Réactiver les actions"}
+            </button>
+            <span className="text-ink-500">actions : {actionsEnabled ? "activées" : "coupées"}</span>
             {resetInfo && <span className="text-brand-700">{resetInfo}</span>}
           </div>
         </details>

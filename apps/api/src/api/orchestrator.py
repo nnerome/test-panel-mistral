@@ -57,6 +57,9 @@ OUT_OF_SCOPE_TEXT = (
 BANK_ERROR_TEXT = (
     "Le système bancaire ne répond pas pour le moment. Réessayez dans un instant, ou demandez à parler à un conseiller."
 )
+ACTIONS_DISABLED_TEXT = (
+    "Cette opération est momentanément indisponible ; un conseiller peut vous aider."
+)
 
 
 class StageTiming(BaseModel):
@@ -84,6 +87,7 @@ class TurnResult(BaseModel):
     # the API returns usage, else null.
     model: str | None = None
     tokens: dict | None = None
+    handoff_reason: str | None = None  # explicit handoff reason override (e.g. actions_disabled)
 
 
 @dataclass
@@ -98,6 +102,8 @@ class OrchestratorDeps:
     classify_fn: Callable[[str], Awaitable[str]] | None = None
     agent_model: Any = None  # agents.testing.ScriptedModel in tests
     run_deps: agent_deps.RunDeps | None = None
+    # Kill switch for state-changing actions; reads the live runtime flags when wired to a request.
+    actions_enabled_fn: Callable[[], bool] | None = None
 
 
 class _Timer:
@@ -262,6 +268,13 @@ async def run_turn(
                     result.needs_step_up = True
                     result.human_offer = True
                     result.answer = STEP_UP_TEXT
+                    return result
+                actions_on = orch.actions_enabled_fn() if orch.actions_enabled_fn is not None else assistant_env.actions_enabled
+                if not actions_on:
+                    # kill switch: NO action agent runs at all; FAQ and account info keep working
+                    result.human_offer = True
+                    result.handoff_reason = "actions_disabled"
+                    result.answer = ACTIONS_DISABLED_TEXT
                     return result
                 start = time.perf_counter()
                 answer, tool_calls, model, tokens = await _run_agent(make_action_agent(orch.agent_model), agent_message, session_input, emit)

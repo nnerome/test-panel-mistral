@@ -52,6 +52,9 @@ class Env(BaseEnv):
     # OR when the X-Admin-Token header matches ADMIN_TOKEN; otherwise they answer a uniform 404.
     # Optional: unset disables the token path entirely (demo mode only).
     admin_token: str | None = None
+    # Kill switch for state-changing actions (lock card). When false, no action agent runs and
+    # confirm refuses with actions_disabled. Hot-togglable in demo mode via /api/demo/feature-flags.
+    actions_enabled: bool = True
     # Secure attribute on the session cookie: false for local http, true behind TLS in prod.
     session_cookie_secure: bool = False
 
