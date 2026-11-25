@@ -9,7 +9,7 @@ from env.assistant import env as assistant_env
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import delete, update
 
-from api.auth.dependencies import ClientHeaderDep
+from api.auth.dependencies import AdminTokenDep, ClientHeaderDep
 from api.bank.mock import BankFlags
 from api.flags import FeatureFlags, feature_flags_holder
 from api.schemas import BankFlagsBody, BankFlagsView, DemoCustomer, DemoResetResponse, FeatureFlagsBody, FeatureFlagsView
@@ -29,7 +29,9 @@ DEMO_PASSWORD_HINT = "demo1234"
 
 
 def _demo_only() -> None:
-    """Demo routes exist only in demo mode; any real deployment turns them off (404)."""
+    """Demo routes exist only in demo mode; any real deployment turns them off (404).
+    The state-changing ones (reset, bank-flags, feature-flags) additionally require a valid
+    X-Admin-Token (AdminTokenDep) — see their signatures."""
     if not assistant_env.demo_mode:
         raise HTTPException(status_code=404, detail={"code": "not_found", "message": "demo mode disabled"})
 
@@ -52,7 +54,7 @@ async def customers(_: None = Depends(_demo_only)) -> list[DemoCustomer]:
 
 
 @router.get("/bank-flags", operation_id="demo_bank_flags_get")
-async def get_bank_flags(request: Request, _: None = Depends(_demo_only)) -> BankFlagsView:
+async def get_bank_flags(request: Request, _: None = Depends(_demo_only), _a: AdminTokenDep = None) -> BankFlagsView:
     """Current mock-bank fault-injection flags (latency and failure rate)."""
     flags = flags_holder(request)
     return BankFlagsView(
@@ -63,7 +65,7 @@ async def get_bank_flags(request: Request, _: None = Depends(_demo_only)) -> Ban
 
 
 @router.post("/bank-flags", operation_id="demo_bank_flags_set")
-async def set_bank_flags(body: BankFlagsBody, request: Request, _h: ClientHeaderDep, _d: None = Depends(_demo_only)) -> BankFlagsView:
+async def set_bank_flags(body: BankFlagsBody, request: Request, _h: ClientHeaderDep, _d: None = Depends(_demo_only), _a: AdminTokenDep = None) -> BankFlagsView:
     """Set the mock-bank fault-injection flags live (slow mode / failure mode for the demo)."""
     flags = flags_holder(request)
     flags.latency_ms = body.latency_ms
@@ -76,14 +78,14 @@ async def set_bank_flags(body: BankFlagsBody, request: Request, _h: ClientHeader
 
 
 @router.get("/feature-flags", operation_id="demo_feature_flags_get")
-async def get_feature_flags(request: Request, _: None = Depends(_demo_only)) -> FeatureFlagsView:
+async def get_feature_flags(request: Request, _: None = Depends(_demo_only), _a: AdminTokenDep = None) -> FeatureFlagsView:
     """Current runtime feature flags (the actions kill switch)."""
     flags = feature_flags_holder(request)
     return FeatureFlagsView(actions_enabled=flags.actions_enabled, default_actions_enabled=assistant_env.actions_enabled)
 
 
 @router.post("/feature-flags", operation_id="demo_feature_flags_set")
-async def set_feature_flags(body: FeatureFlagsBody, request: Request, _h: ClientHeaderDep, _d: None = Depends(_demo_only)) -> FeatureFlagsView:
+async def set_feature_flags(body: FeatureFlagsBody, request: Request, _h: ClientHeaderDep, _d: None = Depends(_demo_only), _a: AdminTokenDep = None) -> FeatureFlagsView:
     """Hot-toggle the actions kill switch live (demo only). When off, no action agent runs and
     confirm refuses with actions_disabled; cancel stays possible."""
     flags = feature_flags_holder(request)
@@ -92,7 +94,7 @@ async def set_feature_flags(body: FeatureFlagsBody, request: Request, _h: Client
 
 
 @router.post("/reset", operation_id="demo_reset")
-async def reset_demo(_h: ClientHeaderDep, _d: None = Depends(_demo_only)) -> DemoResetResponse:
+async def reset_demo(_h: ClientHeaderDep, _d: None = Depends(_demo_only), _a: AdminTokenDep = None) -> DemoResetResponse:
     """Reset the demo state to the seeded one: unlock every card, drop pending actions, lock
     executions, the adapter idempotency ledger, OTP codes and audit entries. Static seed rows
     (customers, accounts, agencies, KB chunks) and live sessions are kept on purpose."""

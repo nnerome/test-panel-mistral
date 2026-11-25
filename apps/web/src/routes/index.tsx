@@ -107,6 +107,9 @@ const CLIENT_HEADERS = { "X-Bnp-Client": "bnp-assistant-web" };
 // Studio gateway the module's Set-Cookie may not reach the browser, so the cookie alone is not
 // enough there (locally, it is).
 let SESSION_TOKEN: string | null = null;
+// Admin token for the protected demo routes (reset, bank-flags, feature-flags). Kept in memory
+// only, never persisted: the demo panel shows the protected buttons only while it is set.
+let ADMIN_TOKEN: string | null = null;
 
 async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const res = await fetch(path, {
@@ -116,6 +119,7 @@ async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
       "Content-Type": "application/json",
       ...CLIENT_HEADERS,
       ...(SESSION_TOKEN ? { "X-Bnp-Session": SESSION_TOKEN } : {}),
+      ...(ADMIN_TOKEN ? { "X-Admin-Token": ADMIN_TOKEN } : {}),
       ...(init.headers ?? {}),
     },
   });
@@ -218,6 +222,12 @@ function ChatPage() {
   const [flags, setFlags] = useState({ latency_ms: 0, failure_rate: 0 });
   const [latencyInput, setLatencyInput] = useState("0");
   const [failureInput, setFailureInput] = useState("0");
+  // Admin token typed in the demo panel (memory only): gates the protected demo buttons below.
+  const [adminToken, setAdminToken] = useState("");
+  function onAdminTokenChange(v: string) {
+    setAdminToken(v);
+    ADMIN_TOKEN = v.trim() ? v.trim() : null;
+  }
   const [error, setError] = useState<string | null>(null);
   const [lang, setLang] = useState<"fr" | "en">("fr");
   const [now, setNow] = useState(Date.now());
@@ -229,13 +239,6 @@ function ChatPage() {
   useEffect(() => {
     api<SessionInfo>("/api/auth/me").then(setSession).catch(() => setSession(null));
     api<DemoCustomer[]>("/api/demo/customers").then(setCustomers).catch(() => {});
-    api<{ latency_ms: number; failure_rate: number }>("/api/demo/bank-flags")
-      .then((f) => {
-        setFlags(f);
-        setLatencyInput(String(f.latency_ms));
-        setFailureInput(String(f.failure_rate));
-      })
-      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -478,11 +481,21 @@ function ChatPage() {
   // Actions kill switch (runtime feature flag, hot-toggled via /api/demo/feature-flags).
   const [actionsEnabled, setActionsEnabled] = useState(true);
 
+  // Bank-flags and feature-flags are admin-token protected routes: only fetch them once a
+  // token has been entered in the demo panel.
   useEffect(() => {
+    if (!adminToken.trim()) return;
+    api<{ latency_ms: number; failure_rate: number }>("/api/demo/bank-flags")
+      .then((f) => {
+        setFlags(f);
+        setLatencyInput(String(f.latency_ms));
+        setFailureInput(String(f.failure_rate));
+      })
+      .catch(() => {});
     api<{ actions_enabled: boolean }>("/api/demo/feature-flags")
       .then((f) => setActionsEnabled(f.actions_enabled))
       .catch(() => {});
-  }, []);
+  }, [adminToken]);
 
   async function toggleActions() {
     try {
@@ -735,8 +748,25 @@ function ChatPage() {
         </form>
 
         <details className="card px-3 py-2 text-xs text-ink-700">
-          <summary className="cursor-pointer font-medium">Espace démo — latence / panne de la banque fictive</summary>
+          <summary className="cursor-pointer font-medium">Espace démo — latence / panne de la banque fictive (jeton admin requis)</summary>
           <div className="mt-2 flex flex-wrap items-center gap-3">
+            <label className="flex items-center gap-1.5">
+              jeton admin
+              <input
+                className="input w-44 px-2! py-1! font-mono"
+                type="password"
+                autoComplete="off"
+                placeholder="X-Admin-Token"
+                value={adminToken}
+                onChange={(e) => onAdminTokenChange(e.target.value)}
+              />
+            </label>
+            {!adminToken.trim() ? (
+              <span className="text-ink-500">
+                saisissez le jeton admin pour afficher les boutons panne / reset / kill switch (routes protégées, 404 sinon)
+              </span>
+            ) : (
+              <>
             <label className="flex items-center gap-1.5">
               latence ms
               <input className="input w-20 px-2! py-1!" value={latencyInput} onChange={(e) => setLatencyInput(e.target.value)} />
@@ -761,6 +791,8 @@ function ChatPage() {
             </button>
             <span className="text-ink-500">actions : {actionsEnabled ? "activées" : "coupées"}</span>
             {resetInfo && <span className="text-brand-700">{resetInfo}</span>}
+              </>
+            )}
           </div>
         </details>
 

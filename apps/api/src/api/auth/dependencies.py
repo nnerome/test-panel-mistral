@@ -4,6 +4,7 @@ The cookie is HttpOnly + SameSite=Strict (set where the response is built); stat
 endpoints additionally require our own frontend's custom header — a cross-site form cannot
 set custom headers, which is the prototype's CSRF defence."""
 
+import hmac
 from typing import Annotated
 
 from env.assistant import env as assistant_env
@@ -85,3 +86,17 @@ async def require_admin_or_demo(
 
 
 AdminOrDemoDep = Annotated[None, Depends(require_admin_or_demo)]
+
+
+async def require_admin_token(
+    x_admin_token: Annotated[str | None, Header(alias="X-Admin-Token")] = None,
+) -> None:
+    """Admin-only routes (demo reset, bank-flags, feature-flags): active only when X-Admin-Token
+    matches the ADMIN_TOKEN secret. Otherwise a uniform 404, as if the route did not exist.
+    Constant-time comparison; when ADMIN_TOKEN is unset no token can ever match."""
+    secret = assistant_env.admin_token
+    if not secret or not x_admin_token or not hmac.compare_digest(x_admin_token, secret):
+        raise HTTPException(status_code=404, detail={"code": "not_found", "message": "not found"})
+
+
+AdminTokenDep = Annotated[None, Depends(require_admin_token)]

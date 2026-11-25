@@ -243,11 +243,14 @@ async def test_chat_accepts_lang_toggle(http) -> None:
     assert events["turn"][0]["turn"]["intent"] == "faq"
 
 
-async def test_demo_reset_unlocks_cards_and_clears_pending_actions(http, seeded) -> None:
+async def test_demo_reset_unlocks_cards_and_clears_pending_actions(http, seeded, monkeypatch) -> None:
+    from env.assistant import env as assistant_env
+
+    monkeypatch.setattr(assistant_env, "admin_token", "s3cret-admin")
     client, app = http
     res = await client.post("/api/auth/login", json={"email": "alice.demo@bank-fictive.fr", "password": "demo1234"})
     token = res.json()["token"]
-    h = {"X-Bnp-Session": token, **CLIENT_HEADERS}
+    h = {"X-Bnp-Session": token, "X-Admin-Token": "s3cret-admin", **CLIENT_HEADERS}
     code = (await client.post("/api/auth/step-up", headers=h)).json()["demo_code"]
     await client.post("/api/auth/step-up/verify", json={"code": code}, headers=h)
 
