@@ -21,6 +21,13 @@ def mask_iban_parts(prefix: str, last4: str) -> str:
     return f"{prefix} **** **** {last4}"
 
 
+def contains_pan_like(text: str) -> bool:
+    """True when the text contains a run of 13+ digits (contiguous or typed with separators)."""
+    return any(
+        sum(ch.isdigit() for ch in m.group(0)) >= _PAN_MIN_DIGITS for m in _CANDIDATE_RUN.finditer(text)
+    )
+
+
 def scrub_secrets(text: str) -> str:
     """Last-line defence for anything written to logs/audit/feedback: mask any run of 13+ digits,
     contiguous or typed with separators. Anything shorter (phone numbers, amounts, date parts,

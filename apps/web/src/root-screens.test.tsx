@@ -140,6 +140,11 @@ describe("the root screens", () => {
       "Ask a public question (FAQ) or sign in to manage your everyday banking operations."
     );
     expect(screen.queryByText(/Posez une question publique/)).toBeNull();
+    // the whole chrome follows: header button and sign-in menu included
+    await screen.findByRole("button", { name: "Talk to an advisor" });
+    expect(screen.queryByRole("button", { name: "Parler à un conseiller" })).toBeNull();
+    expect(screen.getByText("Fictional client sign-in…")).toBeTruthy();
+    expect(screen.getByText(/fictional demo — invented data/)).toBeTruthy();
   });
 
   test("a source's own screens replace the plain ones, and the home page still renders", async () => {

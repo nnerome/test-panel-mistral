@@ -10,8 +10,12 @@ from utils.mistral import mistral_client
 
 # Known injection / jailbreak phrasings, French and English, matched case-insensitively.
 INJECTION_PATTERNS = [
-    r"ignore\s+(toutes\s+les\s+|vos\s+|tes\s+|previous\s+|all\s+|your\s+)?(consignes|instructions|directives|rules)",
-    r"disregard\s+(all\s+|your\s+|previous\s+)?(instructions|rules)",
+    # "ignore" + any short run of qualifier words + the keyword ("ignore all your previous instructions")
+    r"\bignore\b.{0,60}?\b(consignes|instructions|directives|rules|guidelines|policies)\b",
+    r"\b(disregard|forget)\b.{0,60}?\b(consignes|instructions|directives|rules|guidelines|policies)\b",
+    # cross-customer targeting, e.g. "block someone else's card" / "bloque la carte de quelqu'un d'autre"
+    r"(someone else|another (?:customer|user|client|person))\s*'?s?\s*(card|account|carte|compte)",
+    r"\b(carte|compte|account|card)\s+(de|d'|of)\s*(quelqu'un|un autre|une autre|someone else|another (?:customer|user|client|person))",
     r"oublie\s+(tes|vos)\s+(consignes|instructions)",
     r"ne\s+plus\s+suivre\s+(tes|vos)\s+consignes",
     r"tu\s+es\s+maintenant",
@@ -40,6 +44,9 @@ def pattern_check(text: str) -> str | None:
 # NOT blocking: for a retail-bank FAQ they fire on legitimate in-domain questions ("contester un
 # prélèvement", "plafond d'un virement", "fraude") which the knowledge base answers — out-of-scope
 # is the classifier's job. They stay visible in result.moderation.categories for observability.
+# `pii` is special-cased below: the moderation model false-positives on benign questions such as
+# "What is my balance?", so pii only blocks when the message actually contains a PAN-like digit
+# run (the thing we mask everywhere else).
 BLOCKING_MODERATION_CATEGORIES = frozenset(
     {
         "sexual",
@@ -75,8 +82,12 @@ async def moderate_text(client, text: str, model: str | None = None) -> dict:
         if result.categories:
             for name, violated in result.categories.items():
                 categories[name] = bool(violated) or categories.get(name, False)
+    from api.domain.masking import contains_pan_like
+
     blocking = sorted(
-        c for c, v in categories.items() if v and c in BLOCKING_MODERATION_CATEGORIES
+        c
+        for c, v in categories.items()
+        if v and c in BLOCKING_MODERATION_CATEGORIES and (c != "pii" or contains_pan_like(text))
     )
     return {"safe": not blocking, "categories": categories, "blocking": blocking}
 

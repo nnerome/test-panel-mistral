@@ -80,11 +80,28 @@ def scripted_agent(case):
         elif tool == "get_balance":
             args = {"account_label": "3002"} if case["id"] == "acc-4" else ({"account_label": "Livret"} if case["id"] == "acc-5" else {})
         steps.append(agents.testing.call(tool, **args))
+    en = case.get("lang") == "en"
     reply = {
-        "faq": "Réponse d'après la source citée. (source : knowledge/fr/faq.md)",
-        "account_info": "Livret épargne : 12 000,00 € ; compte courant : 870,25 € (FR76 **** **** 3002). Cartes : **** **** **** 5678, **** **** **** 9012.",
-        "action": "Proposition enregistrée, veuillez confirmer dans l'interface.",
-        "out_of_scope": "Je ne réponds qu'aux questions bancaires ; un conseiller peut vous aider.",
+        "faq": (
+            "Answer grounded in the cited source [1]. (source : knowledge/en/faq.md)"
+            if en
+            else "Réponse d'après la source citée. (source : knowledge/fr/faq.md)"
+        ),
+        "account_info": (
+            "Savings account: EUR 12,000.00; current account: EUR 870.25 (FR76 **** **** 3002). Cards: **** **** **** 5678, **** **** **** 9012."
+            if en
+            else "Livret épargne : 12 000,00 € ; compte courant : 870,25 € (FR76 **** **** 3002). Cartes : **** **** **** 5678, **** **** **** 9012."
+        ),
+        "action": (
+            "Proposal saved, please confirm in the interface."
+            if en
+            else "Proposition enregistrée, veuillez confirmer dans l'interface."
+        ),
+        "out_of_scope": (
+            "I only answer banking questions; an advisor can help you."
+            if en
+            else "Je ne réponds qu'aux questions bancaires ; un conseiller peut vous aider."
+        ),
     }.get(case["expected_intent"], "ok")
     steps.append(agents.testing.reply(reply))
     return agents.testing.ScriptedModel(steps)

@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 
 import { renderMarkdown } from "../markdown";
+import { TEXTS, type Lang, type Texts } from "../i18n";
 
 /**
  * The demo chat page. Every decision stays server-side: this component only renders what the
@@ -103,12 +104,6 @@ interface Message {
 
 const CLIENT_HEADERS = { "X-Bnp-Client": "bnp-assistant-web" };
 
-// Empty-chat hint, shown in the UI language selected by the FR/EN toggle.
-const EMPTY_HINT = {
-  fr: "Posez une question publique (FAQ) ou connectez-vous pour gérer vos opérations courantes.",
-  en: "Ask a public question (FAQ) or sign in to manage your everyday banking operations.",
-} as const;
-
 // The session token from the login response, echoed as X-Bnp-Session on every call: behind the
 // Studio gateway the module's Set-Cookie may not reach the browser, so the cookie alone is not
 // enough there (locally, it is).
@@ -141,12 +136,6 @@ async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-const LEVEL_LABEL: Record<AuthLevel, string> = {
-  anonymous: "anonyme",
-  authenticated: "connecté",
-  strong: "authentification forte",
-};
-
 const LEVEL_BADGE: Record<AuthLevel, string> = {
   anonymous: "bg-white/10 text-brand-100",
   authenticated: "bg-amber-300/20 text-amber-100",
@@ -156,14 +145,8 @@ const LEVEL_BADGE: Record<AuthLevel, string> = {
 // Per-turn feedback widget state, keyed by correlation_id.
 type FbState = { rating: "up" | "down"; reason: string; comment: string; sent: boolean; open: boolean };
 
-const REASON_LABEL: Record<string, string> = {
-  wrong: "Réponse erronée",
-  off_topic: "Hors sujet",
-  too_long: "Trop long",
-  other: "Autre",
-};
-
 function FeedbackWidget(props: {
+  t: Texts;
   fb: FbState | undefined;
   onUp: () => void;
   onDown: () => void;
@@ -171,17 +154,17 @@ function FeedbackWidget(props: {
   onComment: (c: string) => void;
   onSend: () => void;
 }) {
-  const { fb, onUp, onDown, onReason, onComment, onSend } = props;
+  const { t, fb, onUp, onDown, onReason, onComment, onSend } = props;
   if (fb?.sent) {
-    return <div className="mt-2 text-[11px] font-medium text-brand-700">Merci pour votre retour ✓</div>;
+    return <div className="mt-2 text-[11px] font-medium text-brand-700">{t.thanksFeedback}</div>;
   }
   if (!fb) {
     return (
       <div className="mt-2 flex gap-1.5">
-        <button className="chip hover:bg-brand-50" title="Bonne réponse" onClick={onUp}>
+        <button className="chip hover:bg-brand-50" title={t.goodAnswer} onClick={onUp}>
           👍
         </button>
-        <button className="chip hover:bg-red-50" title="Mauvaise réponse" onClick={onDown}>
+        <button className="chip hover:bg-red-50" title={t.badAnswer} onClick={onDown}>
           👎
         </button>
       </div>
@@ -191,7 +174,7 @@ function FeedbackWidget(props: {
   return (
     <div className="mt-2 flex flex-wrap items-center gap-1.5 rounded-lg border border-ink-100 bg-ink-50 p-2">
       <select className="select px-2! py-1! text-xs" value={fb.reason} onChange={(e) => onReason(e.target.value)}>
-        {Object.entries(REASON_LABEL).map(([v, label]) => (
+        {Object.entries(t.reason).map(([v, label]) => (
           <option key={v} value={v}>
             {label}
           </option>
@@ -200,12 +183,12 @@ function FeedbackWidget(props: {
       <input
         className="input flex-1 px-2! py-1! text-xs"
         maxLength={280}
-        placeholder="Commentaire (optionnel, 280 max)"
+        placeholder={t.commentPlaceholder}
         value={fb.comment}
         onChange={(e) => onComment(e.target.value)}
       />
       <button className="btn-primary px-2.5! py-1! text-xs!" onClick={onSend}>
-        Envoyer
+        {t.send}
       </button>
     </div>
   );
@@ -235,7 +218,8 @@ function ChatPage() {
     ADMIN_TOKEN = v.trim() ? v.trim() : null;
   }
   const [error, setError] = useState<string | null>(null);
-  const [lang, setLang] = useState<"fr" | "en">("fr");
+  const [lang, setLang] = useState<Lang>("fr");
+  const t = TEXTS[lang];
   const [now, setNow] = useState(Date.now());
   // The user message that triggered a needs_login / needs_step_up turn: re-sent automatically
   // once the auth step succeeds, so the chat resumes the conversation by itself.
@@ -364,7 +348,7 @@ function ChatPage() {
             if (turn.needs_login || turn.needs_step_up) setPendingResume(text);
             else setPendingResume(null);
           } else if (currentEvent === "error") {
-            patch((m) => ({ ...m, text: m.text + `\n[erreur: ${payload.message}]` }));
+            patch((m) => ({ ...m, text: m.text + `\n${t.streamError(payload.message)}` }));
           }
         }
       }
@@ -392,9 +376,7 @@ function ChatPage() {
         ...ms,
         {
           role: "assistant",
-          text: res.executed
-            ? `Carte ${res.action ? "" : ""}bloquée (résultat confirmé côté serveur, exécuté une seule fois).`
-            : `Confirmation rejouée : le résultat enregistré est retourné sans réexécuter (idempotence).`,
+          text: res.executed ? t.cardLocked : t.replayConfirmed,
         },
       ]);
     } catch (e) {
@@ -475,7 +457,7 @@ function ChatPage() {
         method: "POST",
         body: "{}",
       });
-      setResetInfo(`OK — cartes débloquées : ${res.cards_unlocked}, lignes supprimées : ${JSON.stringify(res.deleted)}`);
+      setResetInfo(t.resetInfo(res.cards_unlocked, JSON.stringify(res.deleted)));
       setPending(null);
     } catch (e) {
       setError(String(e));
@@ -566,16 +548,16 @@ function ChatPage() {
               <div className="font-semibold tracking-tight">
                 BNP Paribas <span className="font-normal text-brand-200">· Assistant</span>
               </div>
-              <div className="text-[11px] text-brand-200">démo fictive — données inventées</div>
+              <div className="text-[11px] text-brand-200">{t.demoTag}</div>
             </div>
           </div>
           <span className={`badge ${LEVEL_BADGE[session?.level ?? "anonymous"]}`}>
             <span className="h-1.5 w-1.5 rounded-full bg-current" />
-            {LEVEL_LABEL[session?.level ?? "anonymous"]}
+            {t.level[session?.level ?? "anonymous"]}
             {session?.customer_name ? ` · ${session.customer_name}` : ""}
           </span>
           <div className="ml-auto flex flex-wrap items-center gap-2">
-            <div className="flex overflow-hidden rounded-lg border border-white/25 text-xs font-semibold" title="Langue de réponse">
+            <div className="flex overflow-hidden rounded-lg border border-white/25 text-xs font-semibold" title={t.langToggleTitle}>
               <button
                 className={lang === "fr" ? "bg-white px-2 py-1 text-brand-900" : "px-2 py-1 text-white hover:bg-white/10"}
                 onClick={() => setLang("fr")}
@@ -594,7 +576,7 @@ function ChatPage() {
               defaultValue=""
               onChange={(e) => e.target.value && login(e.target.value)}
             >
-              <option value="">Connexion client fictif…</option>
+              <option value="">{t.signInPlaceholder}</option>
               {customers.map((c) => (
                 <option key={c.email} value={c.email}>
                   {c.display_name} ({c.email})
@@ -604,15 +586,15 @@ function ChatPage() {
             {session && session.level !== "anonymous" && (
               <>
                 <button className="btn-outline-light" onClick={stepUp}>
-                  Recevoir un code SMS
+                  {t.smsButton}
                 </button>
                 <button className="btn-outline-light" onClick={logout}>
-                  Déconnexion
+                  {t.signOut}
                 </button>
               </>
             )}
-            <button className="btn-advisor" onClick={() => send("Je veux parler à un conseiller")}>
-              Parler à un conseiller
+            <button className="btn-advisor" onClick={() => send(t.advisorMessage)}>
+              {t.advisorButton}
             </button>
           </div>
         </div>
@@ -624,7 +606,7 @@ function ChatPage() {
         <div ref={scrollRef} className="card flex min-h-64 flex-1 flex-col gap-3 overflow-y-auto p-4">
           {messages.length === 0 && (
             <div className="m-auto max-w-sm text-center text-sm text-ink-500">
-              {EMPTY_HINT[lang]}
+              {t.emptyHint}
             </div>
           )}
           {messages.map((m, i) =>
@@ -638,14 +620,14 @@ function ChatPage() {
                   <span className="h-5 w-5 rounded-full bg-brand-600 text-center text-[10px] font-bold leading-5 text-white">
                     A
                   </span>
-                  Assistant
+                  {t.assistantLabel}
                 </div>
                 <div className="rounded-2xl rounded-tl-md border border-ink-100 bg-white px-3.5 py-2.5 text-sm shadow-card">
                   {renderMarkdown(m.text)}
                   {m.sources && m.sources.length > 0 && (
                     <details className="mt-2">
                       <summary className="cursor-pointer text-[11px] font-semibold text-brand-700">
-                        Sources ({m.sources.length}) ▾ — citées dans le texte [n]
+                        {t.sourcesLabel(m.sources.length)}
                       </summary>
                       <div className="mt-1.5 flex flex-wrap gap-1">
                         {m.sources.map((s, j) => (
@@ -658,52 +640,53 @@ function ChatPage() {
                   )}
                   {m.pending && m.pending.status !== "pending" && (
                     <div className="mt-2 rounded-lg border border-brand-200 bg-brand-50 px-2.5 py-1 text-xs text-brand-800">
-                      {m.pending.status === "confirmed" ? "✓ Action confirmée — la carte est bloquée." : "Action annulée."}
+                      {m.pending.status === "confirmed" ? t.actionConfirmed : t.actionCancelled}
                     </div>
                   )}
                   {m.pending && m.pending.status === "pending" && (
                     <div className="mt-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-950">
-                      <div className="font-semibold">Action proposée — confirmation requise</div>
+                      <div className="font-semibold">{t.actionProposed}</div>
                       <div className="mt-0.5">
                         {m.pending.card_label} {m.pending.card_masked_number} — {m.pending.effect}
                       </div>
-                      <div className="mt-0.5 font-mono">expire dans {remaining} s</div>
+                      <div className="mt-0.5 font-mono">{t.expiresIn(remaining)}</div>
                       <div className="mt-2 flex gap-2">
                         <button className="btn-confirm px-2.5! py-1! text-xs!" onClick={() => confirmAction(m.pending!.action_id)}>
-                          Confirmer
+                          {t.confirm}
                         </button>
                         <button className="btn-ghost px-2.5! py-1! text-xs!" onClick={() => cancelAction(m.pending!.action_id)}>
-                          Annuler
+                          {t.cancel}
                         </button>
                       </div>
                     </div>
                   )}
                   {m.turn?.needs_login && (
                     <div className="notice mt-2 border-brand-300 bg-brand-50 px-2.5! py-1! text-xs text-brand-800">
-                      → connectez-vous avec le menu « Connexion client fictif » en haut pour continuer
+                      {t.loginHint}
                     </div>
                   )}
                   {m.turn?.needs_step_up && (
                     <div className="mt-2">
                       <button className="btn-primary px-2.5! py-1! text-xs!" onClick={stepUp}>
-                        Recevoir un code SMS (montée en sécurité)
+                        {t.stepUpInline}
                       </button>
                     </div>
                   )}
                   {m.turn?.human_offer && (
                     <div className="mt-2">
-                      <button className="btn-ghost px-2.5! py-1! text-xs!" onClick={() => send("Je veux parler à un conseiller")}>
-                        Parler à un conseiller
+                      <button className="btn-ghost px-2.5! py-1! text-xs!" onClick={() => send(t.advisorMessage)}>
+                        {t.advisorButton}
                       </button>
                     </div>
                   )}
                   {m.turn?.handoff_id && (
                     <div className="notice mt-2 border-brand-300 bg-brand-50 px-2.5! py-1! text-xs text-brand-800">
-                      Un conseiller a reçu votre demande avec le contexte (réf. {m.turn.handoff_id.slice(-8).toUpperCase()}).
+                      {t.handoffNotice(m.turn.handoff_id.slice(-8).toUpperCase())}
                     </div>
                   )}
                   {m.turn && (
                     <FeedbackWidget
+                      t={t}
                       fb={fbByCorr[m.turn.correlation_id]}
                       onUp={() => vote(m.turn!.correlation_id, "up", i)}
                       onDown={() => vote(m.turn!.correlation_id, "down", i)}
@@ -721,15 +704,15 @@ function ChatPage() {
 
         {otpPending !== null && (
           <div className="notice border-amber-300 bg-amber-50 text-amber-900">
-            Code de démonstration (démo, pas de vrai SMS) : <b className="font-mono">{otpPending}</b>
+            {t.otpBanner}<b className="font-mono">{otpPending}</b>
             <input
               className="input ml-2 inline-block w-28 px-2! py-1! text-sm"
-              placeholder="code à 6 chiffres"
+              placeholder={t.otpPlaceholder}
               value={otpCode}
               onChange={(e) => setOtpCode(e.target.value)}
             />
             <button className="btn-primary ml-2 px-2.5! py-1! text-sm" onClick={verifyOtp}>
-              Valider
+              {t.verify}
             </button>
           </div>
         )}
@@ -743,20 +726,20 @@ function ChatPage() {
         >
           <input
             className="input flex-1"
-            placeholder="Votre message…"
+            placeholder={t.inputPlaceholder}
             value={input}
             onChange={(e) => setInput(e.target.value)}
           />
           <button className="btn-primary px-4 py-2" disabled={busy || !input.trim()}>
-            Envoyer
+            {t.send}
           </button>
         </form>
 
         <details className="card px-3 py-2 text-xs text-ink-700">
-          <summary className="cursor-pointer font-medium">Espace démo — latence / panne de la banque fictive (jeton admin requis)</summary>
+          <summary className="cursor-pointer font-medium">{t.demoPanel}</summary>
           <div className="mt-2 flex flex-wrap items-center gap-3">
             <label className="flex items-center gap-1.5">
-              jeton admin
+              {t.adminToken}
               <input
                 className="input w-44 px-2! py-1! font-mono"
                 type="password"
@@ -768,33 +751,33 @@ function ChatPage() {
             </label>
             {!adminToken.trim() ? (
               <span className="text-ink-500">
-                saisissez le jeton admin pour afficher les boutons panne / reset / kill switch (routes protégées, 404 sinon)
+                {t.adminTokenHint}
               </span>
             ) : (
               <>
             <label className="flex items-center gap-1.5">
-              latence ms
+              {t.latencyMs}
               <input className="input w-20 px-2! py-1!" value={latencyInput} onChange={(e) => setLatencyInput(e.target.value)} />
             </label>
             <label className="flex items-center gap-1.5">
-              taux d'échec
+              {t.failureRate}
               <input className="input w-16 px-2! py-1!" value={failureInput} onChange={(e) => setFailureInput(e.target.value)} />
             </label>
             <button className="btn-ghost px-2.5! py-1!" onClick={saveFlags}>
-              Appliquer
+              {t.apply}
             </button>
-            <span className="text-ink-500">actuel : {flags.latency_ms} ms / {flags.failure_rate}</span>
+            <span className="text-ink-500">{t.currentFlags(flags.latency_ms, flags.failure_rate)}</span>
             <button className="btn-ghost px-2.5! py-1! border-red-300! text-red-700!" onClick={resetDemo}>
-              Réinitialiser la BDD (démo)
+              {t.resetDb}
             </button>
             <button
               className={`btn-ghost px-2.5! py-1! ${actionsEnabled ? "border-red-300! text-red-700!" : "border-green-400! text-green-700!"}`}
               onClick={toggleActions}
-              title="Kill switch : aucune action ne s'exécute tant qu'il est coupé"
+              title={t.killSwitchTitle}
             >
-              {actionsEnabled ? "Couper les actions" : "Réactiver les actions"}
+              {actionsEnabled ? t.disableActions : t.enableActions}
             </button>
-            <span className="text-ink-500">actions : {actionsEnabled ? "activées" : "coupées"}</span>
+            <span className="text-ink-500">{t.actionsState(actionsEnabled)}</span>
             {resetInfo && <span className="text-brand-700">{resetInfo}</span>}
               </>
             )}
@@ -802,55 +785,55 @@ function ChatPage() {
         </details>
 
         <details className="card px-3 py-2 text-xs text-ink-700">
-          <summary className="cursor-pointer font-medium">Métriques agrégées (60 min) — route réservée (démo/admin)</summary>
+          <summary className="cursor-pointer font-medium">{t.metricsPanel}</summary>
           <div className="mt-2">
             <button className="btn-ghost px-2.5! py-1!" onClick={refreshMetrics}>
-              Rafraîchir
+              {t.refresh}
             </button>
             {metrics && (
               <div className="mt-2 overflow-x-auto">
                 <table className="w-full border-collapse text-left">
                   <tbody>
-                    <tr><td className="pr-3 text-ink-500">tours</td><td className="font-semibold">{metrics.turns_total}</td>
-                        <td className="pr-3 text-ink-500">par intention</td><td>{JSON.stringify(metrics.by_intent)}</td></tr>
-                    <tr><td className="pr-3 text-ink-500">refus</td><td>{pct(metrics.refused_rate)}</td>
-                        <td className="pr-3 text-ink-500">escalade (conseiller)</td><td>{pct(metrics.human_offer_rate)}</td>
-                        <td className="pr-3 text-ink-500">erreurs</td><td>{pct(metrics.error_rate)}</td></tr>
-                    <tr><td className="pr-3 text-ink-500">pouces bas</td><td>{pct(metrics.downvote_rate)} ({metrics.downvotes_down}/{metrics.downvotes_rated})</td>
-                        <td className="pr-3 text-ink-500">bout en bout</td><td>{ms(metrics.end_to_end_ms)}</td></tr>
+                    <tr><td className="pr-3 text-ink-500">{t.mTurns}</td><td className="font-semibold">{metrics.turns_total}</td>
+                        <td className="pr-3 text-ink-500">{t.mByIntent}</td><td>{JSON.stringify(metrics.by_intent)}</td></tr>
+                    <tr><td className="pr-3 text-ink-500">{t.mRefused}</td><td>{pct(metrics.refused_rate)}</td>
+                        <td className="pr-3 text-ink-500">{t.mEscalation}</td><td>{pct(metrics.human_offer_rate)}</td>
+                        <td className="pr-3 text-ink-500">{t.mErrors}</td><td>{pct(metrics.error_rate)}</td></tr>
+                    <tr><td className="pr-3 text-ink-500">{t.mDownvotes}</td><td>{pct(metrics.downvote_rate)} ({metrics.downvotes_down}/{metrics.downvotes_rated})</td>
+                        <td className="pr-3 text-ink-500">{t.mE2E}</td><td>{ms(metrics.end_to_end_ms)}</td></tr>
                     {Object.entries(metrics.latency_ms).map(([stage, l]) => (
                       <tr key={stage}><td className="pr-3 text-ink-500">{stage}</td><td colSpan={5}>{ms(l)}</td></tr>
                     ))}
-                    <tr><td className="pr-3 text-ink-500">actions</td><td colSpan={5}>{JSON.stringify(metrics.actions)}</td></tr>
+                    <tr><td className="pr-3 text-ink-500">{t.mActions}</td><td colSpan={5}>{JSON.stringify(metrics.actions)}</td></tr>
                   </tbody>
                 </table>
-                <div className="mt-1 text-[10px] text-ink-400">percentiles : méthode {metrics.method}</div>
+                <div className="mt-1 text-[10px] text-ink-400">{t.percentilesMethod(metrics.method)}</div>
               </div>
             )}
           </div>
         </details>
 
         <details className="card px-3 py-2 text-xs text-ink-700">
-          <summary className="cursor-pointer font-medium">File conseiller — demandes ouvertes (route réservée)</summary>
+          <summary className="cursor-pointer font-medium">{t.handoffsPanel}</summary>
           <div className="mt-2">
             <button className="btn-ghost px-2.5! py-1!" onClick={refreshHandoffs}>
-              Rafraîchir
+              {t.refresh}
             </button>
-            {handoffs !== null && handoffs.length === 0 && <span className="ml-2 text-ink-500">aucune demande ouverte</span>}
+            {handoffs !== null && handoffs.length === 0 && <span className="ml-2 text-ink-500">{t.noOpenRequests}</span>}
             <div className="mt-2 flex flex-col gap-2">
               {handoffs?.map((h) => (
                 <div key={h.id} className="rounded-lg border border-ink-100 bg-ink-50 p-2">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="badge bg-brand-100 text-brand-800">{h.reason}</span>
                     <span className="text-ink-500">
-                      {h.intent} · {h.auth_level} · réf {h.id.slice(-8).toUpperCase()}
+                      {h.intent} · {h.auth_level} · {t.ref} {h.id.slice(-8).toUpperCase()}
                     </span>
                     <span className="ml-auto flex gap-1.5">
                       <button className="btn-ghost px-2! py-0.5! text-[11px]!" onClick={() => setHandoffStatus(h.id, "taken")}>
-                        Prendre
+                        {t.take}
                       </button>
                       <button className="btn-ghost px-2! py-0.5! text-[11px]!" onClick={() => setHandoffStatus(h.id, "closed")}>
-                        Clôturer
+                        {t.close}
                       </button>
                     </span>
                   </div>
@@ -862,14 +845,14 @@ function ChatPage() {
         </details>
 
         <details className="card px-3 py-2 text-xs text-ink-700">
-          <summary className="cursor-pointer font-medium">Under the hood — dernier tour (JSON brut)</summary>
+          <summary className="cursor-pointer font-medium">{t.underHood}</summary>
           <pre className="mt-2 max-h-96 overflow-auto whitespace-pre-wrap break-all rounded-lg bg-ink-900 p-3 font-mono text-[11px] leading-relaxed text-brand-100">
-            {lastTurn ? JSON.stringify(lastTurn, null, 2) : "aucun tour pour le moment"}
+            {lastTurn ? JSON.stringify(lastTurn, null, 2) : t.noTurnYet}
           </pre>
         </details>
 
         <p className="pb-2 text-center text-[11px] text-ink-500">
-          Maquette de démonstration — banque et données entièrement fictives.
+          {t.footer}
         </p>
       </main>
     </div>
