@@ -7,7 +7,7 @@ import {
   createRouter,
 } from "@tanstack/react-router";
 import type { RouteComponent } from "@tanstack/react-router";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 
 import { NotFound } from "./not-found";
@@ -127,6 +127,19 @@ describe("the root screens", () => {
     await screen.findByText("Page introuvable");
     expect(new Set(source.asked)).toEqual(new Set(["en"]));
     expect(resolveLocale).not.toHaveBeenCalled();
+  });
+
+  test("the empty-chat hint follows the FR/EN toggle", async () => {
+    renderRoot(home(), french(), { locale: "fr" });
+
+    await screen.findByText(
+      "Posez une question publique (FAQ) ou connectez-vous pour gérer vos opérations courantes."
+    );
+    fireEvent.click(screen.getByRole("button", { name: "EN" }));
+    await screen.findByText(
+      "Ask a public question (FAQ) or sign in to manage your everyday banking operations."
+    );
+    expect(screen.queryByText(/Posez une question publique/)).toBeNull();
   });
 
   test("a source's own screens replace the plain ones, and the home page still renders", async () => {

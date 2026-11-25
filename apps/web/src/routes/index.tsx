@@ -103,6 +103,12 @@ interface Message {
 
 const CLIENT_HEADERS = { "X-Bnp-Client": "bnp-assistant-web" };
 
+// Empty-chat hint, shown in the UI language selected by the FR/EN toggle.
+const EMPTY_HINT = {
+  fr: "Posez une question publique (FAQ) ou connectez-vous pour gérer vos opérations courantes.",
+  en: "Ask a public question (FAQ) or sign in to manage your everyday banking operations.",
+} as const;
+
 // The session token from the login response, echoed as X-Bnp-Session on every call: behind the
 // Studio gateway the module's Set-Cookie may not reach the browser, so the cookie alone is not
 // enough there (locally, it is).
@@ -618,8 +624,7 @@ function ChatPage() {
         <div ref={scrollRef} className="card flex min-h-64 flex-1 flex-col gap-3 overflow-y-auto p-4">
           {messages.length === 0 && (
             <div className="m-auto max-w-sm text-center text-sm text-ink-500">
-              Posez une question publique (FAQ) ou connectez-vous pour consulter vos comptes et bloquer
-              une carte.
+              {EMPTY_HINT[lang]}
             </div>
           )}
           {messages.map((m, i) =>
