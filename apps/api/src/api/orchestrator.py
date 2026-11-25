@@ -54,8 +54,8 @@ OUT_OF_SCOPE_TEXT = (
     "Je suis l'assistant d'une banque de démonstration : je réponds aux questions bancaires publiques et à celles "
     "portant sur votre compte. Pour autre chose, un conseiller peut vous aider."
 )
-BANK_ERROR_TEXT = (
-    "Le système bancaire ne répond pas pour le moment. Réessayez dans un instant, ou demandez à parler à un conseiller."
+STAGE_ERROR_TEXT = (
+    "Je rencontre un problème technique, je peux vous mettre en relation avec un conseiller."
 )
 ACTIONS_DISABLED_TEXT = (
     "Cette opération est momentanément indisponible ; un conseiller peut vous aider."
@@ -305,10 +305,10 @@ async def run_turn(
             return result
         finally:
             agent_deps.reset_run(token)
-    except Exception as error:  # bank down, model error, ...: clear message + human offer
+    except Exception as error:  # stage down (bank/model/moderation): neutral message + human offer
         result.error = type(error).__name__
         result.human_offer = True
-        result.answer = BANK_ERROR_TEXT
+        result.answer = STAGE_ERROR_TEXT
         return result
     finally:
         result.timings = timer.timings

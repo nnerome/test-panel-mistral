@@ -129,9 +129,11 @@ async def test_stage_error_yields_message_and_human_offer(seeded) -> None:
     result = await run_turn("Bonjour", None, orch=_orch(seeded, None, "faq", classify=boom))
     assert result.human_offer is True
     assert result.error == "RuntimeError"
-    from api.orchestrator import BANK_ERROR_TEXT
+    from api.orchestrator import STAGE_ERROR_TEXT
 
-    assert result.answer == BANK_ERROR_TEXT
+    assert result.answer == STAGE_ERROR_TEXT
+    assert result.answer == "Je rencontre un problème technique, je peux vous mettre en relation avec un conseiller."
+    assert "système bancaire" not in result.answer.lower()  # neutral wording: no mention of the bank system
     assert result.timings, "stages are still timed even on failure"
 
 
