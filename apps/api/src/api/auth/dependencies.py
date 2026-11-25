@@ -68,3 +68,20 @@ async def require_client_header(
 
 
 ClientHeaderDep = Annotated[None, Depends(require_client_header)]
+
+
+async def require_admin_or_demo(
+    request: Request,
+    x_admin_token: Annotated[str | None, Header(alias="X-Admin-Token")] = None,
+) -> None:
+    """Reserved read/admin routes (metrics, feedback list, handoff queue): active only in demo
+    mode OR when X-Admin-Token matches ADMIN_TOKEN. Otherwise a uniform 404, as if the route
+    did not exist — the check never reveals whether the route is there."""
+    if assistant_env.demo_mode:
+        return
+    if assistant_env.admin_token and x_admin_token == assistant_env.admin_token:
+        return
+    raise HTTPException(status_code=404, detail={"code": "not_found", "message": "not found"})
+
+
+AdminOrDemoDep = Annotated[None, Depends(require_admin_or_demo)]

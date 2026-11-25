@@ -95,3 +95,33 @@ class ConfirmResponse(StrictModel):
     action: PendingActionView
     executed: bool  # False on replay: the stored result is returned, nothing re-executes
     result: dict
+
+
+# --- feedback loop -----------------------------------------------------------
+
+FeedbackRating = Literal["up", "down"]
+FeedbackReason = Literal["wrong", "off_topic", "too_long", "other"]
+
+
+class FeedbackRequest(StrictModel):
+    correlation_id: str = Field(min_length=1, max_length=64)
+    rating: FeedbackRating  # invalid values are rejected with 422 by the Literal
+    reason: FeedbackReason | None = None
+    comment: str | None = Field(default=None, max_length=280)
+    # Excerpts are stored only for "down" ratings; the route scrubs and truncates them anyway.
+    message_excerpt: str | None = Field(default=None, max_length=500)
+    answer_excerpt: str | None = Field(default=None, max_length=500)
+
+
+class FeedbackView(StrictModel):
+    id: uuid.UUID
+    correlation_id: str
+    rating: str
+    reason: str | None
+    comment: str | None
+    created_at: datetime
+
+
+class FeedbackList(StrictModel):
+    count: int
+    items: list[FeedbackView]

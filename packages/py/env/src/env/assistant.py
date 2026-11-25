@@ -48,6 +48,10 @@ class Env(BaseEnv):
     # Demo endpoints (customer list with password hint, live bank-fault toggles) exist only in
     # demo mode; set false in any real deployment so /api/demo/* answers 404.
     demo_mode: bool = True
+    # Reserved read/admin routes (metrics, feedback list, handoff queue) are active in demo mode
+    # OR when the X-Admin-Token header matches ADMIN_TOKEN; otherwise they answer a uniform 404.
+    # Optional: unset disables the token path entirely (demo mode only).
+    admin_token: str | None = None
     # Secure attribute on the session cookie: false for local http, true behind TLS in prod.
     session_cookie_secure: bool = False
 

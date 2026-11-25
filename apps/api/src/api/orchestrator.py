@@ -80,6 +80,10 @@ class TurnResult(BaseModel):
     needs_step_up: bool = False
     human_offer: bool = False
     error: str | None = None
+    # Recorded with the turn (see api.turnlog): model from the agent config, tokens only when
+    # the API returns usage, else null.
+    model: str | None = None
+    tokens: dict | None = None
 
 
 @dataclass
@@ -120,8 +124,9 @@ def cap_sources(sources: list[dict], k: int) -> list[dict]:
     return out
 
 
-async def _run_agent(agent, message: str, session_input: BankSessionInput, emit) -> tuple[str, list[dict]]:
-    """Run one agent turn, streaming text deltas through `emit`. Returns (answer, tool_calls)."""
+async def _run_agent(agent, message: str, session_input: BankSessionInput, emit) -> tuple[str, list[dict], str | None, dict | None]:
+    """Run one agent turn, streaming text deltas through `emit`. Returns (answer, tool_calls,
+    model, tokens) — model/tokens are None when the SDK/API does not provide them."""
 
     async def on_event(event) -> None:
         if isinstance(event, agents.TextDelta):
@@ -135,8 +140,11 @@ async def _run_agent(agent, message: str, session_input: BankSessionInput, emit)
         await session.cancel()
     if isinstance(state, agents.Completed):
         tool_calls = [{"name": c.name, "arguments": c.arguments} for c in state.tool_calls]
-        return state.text, tool_calls
-    return (getattr(state, "text", "") or ""), []
+        usage = getattr(state, "usage", None)
+        tokens = usage.model_dump(mode="json") if hasattr(usage, "model_dump") else (dict(usage) if isinstance(usage, dict) else None)
+        model = getattr(state, "model", None) or getattr(agent, "model", None)
+        return state.text, tool_calls, (str(model) if model else None), tokens
+    return (getattr(state, "text", "") or ""), [], None, None
 
 
 def apply_lang(message: str, lang: str | None) -> str:
@@ -233,16 +241,18 @@ async def run_turn(
             agent_message = apply_lang(message, lang)
             if intent == "faq":
                 start = time.perf_counter()
-                answer, tool_calls = await _run_agent(make_faq_agent(orch.agent_model), agent_message, session_input, emit)
+                answer, tool_calls, model, tokens = await _run_agent(make_faq_agent(orch.agent_model), agent_message, session_input, emit)
                 timer.record("agent_faq", start)
+                result.model, result.tokens = model, tokens
             elif intent == "account_info":
                 if ctx is None or ctx.level == "anonymous" or ctx.customer_id is None:
                     result.needs_login = True
                     result.answer = LOGIN_PROMPT_TEXT
                     return result
                 start = time.perf_counter()
-                answer, tool_calls = await _run_agent(make_account_agent(orch.agent_model), agent_message, session_input, emit)
+                answer, tool_calls, model, tokens = await _run_agent(make_account_agent(orch.agent_model), agent_message, session_input, emit)
                 timer.record("agent_account", start)
+                result.model, result.tokens = model, tokens
             elif intent == "action":
                 if ctx is None or ctx.level == "anonymous" or ctx.customer_id is None:
                     result.needs_login = True
@@ -254,8 +264,9 @@ async def run_turn(
                     result.answer = STEP_UP_TEXT
                     return result
                 start = time.perf_counter()
-                answer, tool_calls = await _run_agent(make_action_agent(orch.agent_model), agent_message, session_input, emit)
+                answer, tool_calls, model, tokens = await _run_agent(make_action_agent(orch.agent_model), agent_message, session_input, emit)
                 timer.record("agent_action", start)
+                result.model, result.tokens = model, tokens
             elif intent == "human_request":
                 result.human_offer = True
                 result.answer = ADVISOR_TEXT

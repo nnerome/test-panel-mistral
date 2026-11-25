@@ -108,6 +108,64 @@ const LEVEL_BADGE: Record<AuthLevel, string> = {
   strong: "bg-brand-300/25 text-brand-50",
 };
 
+// Per-turn feedback widget state, keyed by correlation_id.
+type FbState = { rating: "up" | "down"; reason: string; comment: string; sent: boolean; open: boolean };
+
+const REASON_LABEL: Record<string, string> = {
+  wrong: "Réponse erronée",
+  off_topic: "Hors sujet",
+  too_long: "Trop long",
+  other: "Autre",
+};
+
+function FeedbackWidget(props: {
+  fb: FbState | undefined;
+  onUp: () => void;
+  onDown: () => void;
+  onReason: (r: string) => void;
+  onComment: (c: string) => void;
+  onSend: () => void;
+}) {
+  const { fb, onUp, onDown, onReason, onComment, onSend } = props;
+  if (fb?.sent) {
+    return <div className="mt-2 text-[11px] font-medium text-brand-700">Merci pour votre retour ✓</div>;
+  }
+  if (!fb) {
+    return (
+      <div className="mt-2 flex gap-1.5">
+        <button className="chip hover:bg-brand-50" title="Bonne réponse" onClick={onUp}>
+          👍
+        </button>
+        <button className="chip hover:bg-red-50" title="Mauvaise réponse" onClick={onDown}>
+          👎
+        </button>
+      </div>
+    );
+  }
+  if (fb.rating === "up") return null; // sent immediately on click
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-1.5 rounded-lg border border-ink-100 bg-ink-50 p-2">
+      <select className="select px-2! py-1! text-xs" value={fb.reason} onChange={(e) => onReason(e.target.value)}>
+        {Object.entries(REASON_LABEL).map(([v, label]) => (
+          <option key={v} value={v}>
+            {label}
+          </option>
+        ))}
+      </select>
+      <input
+        className="input flex-1 px-2! py-1! text-xs"
+        maxLength={280}
+        placeholder="Commentaire (optionnel, 280 max)"
+        value={fb.comment}
+        onChange={(e) => onComment(e.target.value)}
+      />
+      <button className="btn-primary px-2.5! py-1! text-xs!" onClick={onSend}>
+        Envoyer
+      </button>
+    </div>
+  );
+}
+
 export const Route = createFileRoute("/")({
   component: ChatPage,
 });
@@ -327,6 +385,43 @@ function ChatPage() {
   }
 
   const [resetInfo, setResetInfo] = useState<string | null>(null);
+  // Feedback state per turn correlation_id: { rating, reason, comment, sent, open }
+  const [fbByCorr, setFbByCorr] = useState<Record<string, FbState>>({});
+
+  function updateFb(corr: string, patch: Partial<FbState>) {
+    setFbByCorr((c) => ({ ...c, [corr]: { rating: "down", reason: "other", comment: "", sent: false, open: false, ...c[corr], ...patch } }));
+  }
+
+  function vote(corr: string, rating: "up" | "down", i: number) {
+    const cur = fbByCorr[corr];
+    const next: FbState = { rating, reason: cur?.reason || "other", comment: cur?.comment || "", sent: cur?.sent || false, open: rating === "down" };
+    setFbByCorr((c) => ({ ...c, [corr]: next }));
+    if (rating === "up") void sendFeedback(i, next); // thumbs up sends immediately
+  }
+
+  async function sendFeedback(i: number, fb: FbState | undefined) {
+    const m = messages[i];
+    const turn = m?.turn;
+    if (!turn || !fb || fb.sent) return;
+    const userText = i > 0 && messages[i - 1]?.role === "user" ? messages[i - 1].text : "";
+    try {
+      await api("/api/feedback", {
+        method: "POST",
+        body: JSON.stringify({
+          correlation_id: turn.correlation_id,
+          rating: fb.rating,
+          reason: fb.rating === "down" ? fb.reason || null : null,
+          comment: fb.comment || null,
+          // excerpts only for "down"; the server scrubs and truncates them anyway
+          message_excerpt: fb.rating === "down" ? userText.slice(0, 500) : null,
+          answer_excerpt: fb.rating === "down" ? m.text.slice(0, 500) : null,
+        }),
+      });
+      setFbByCorr((c) => ({ ...c, [turn.correlation_id]: { ...fb, sent: true } }));
+    } catch (e) {
+      setError(String(e));
+    }
+  }
 
   async function resetDemo() {
     setError(null);
@@ -488,6 +583,16 @@ function ChatPage() {
                         Parler à un conseiller
                       </button>
                     </div>
+                  )}
+                  {m.turn && (
+                    <FeedbackWidget
+                      fb={fbByCorr[m.turn.correlation_id]}
+                      onUp={() => vote(m.turn!.correlation_id, "up", i)}
+                      onDown={() => vote(m.turn!.correlation_id, "down", i)}
+                      onReason={(r) => updateFb(m.turn!.correlation_id, { reason: r })}
+                      onComment={(c) => updateFb(m.turn!.correlation_id, { comment: c })}
+                      onSend={() => sendFeedback(i, fbByCorr[m.turn!.correlation_id])}
+                    />
                   )}
                 </div>
               </div>

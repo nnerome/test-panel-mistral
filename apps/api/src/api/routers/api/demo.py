@@ -16,8 +16,10 @@ from db.models.audit_entry import AuditEntry
 from db.models.bank_lock_event import BankLockEvent
 from db.models.card import Card
 from db.models.card_lock_execution import CardLockExecution
+from db.models.feedback import Feedback
 from db.models.otp_code import OtpCode
 from db.models.pending_action import PendingAction
+from db.models.turn_record import TurnRecord
 
 router = APIRouter(tags=["demo"])
 
@@ -81,13 +83,16 @@ async def reset_demo(_h: ClientHeaderDep, _d: None = Depends(_demo_only)) -> Dem
             await session.execute(update(Card).where(Card.status != "active").values(status="active", locked_at=None))
         ).rowcount
         deleted: dict[str, int] = {}
-        # Delete children before parents (card_lock_executions -> pending_actions).
+        # Delete children before parents (card_lock_executions -> pending_actions,
+        # feedback -> turn_records).
         for name, model in [
             ("card_lock_executions", CardLockExecution),
             ("pending_actions", PendingAction),
             ("bank_lock_events", BankLockEvent),
             ("otp_codes", OtpCode),
+            ("feedback", Feedback),
             ("audit_entries", AuditEntry),
+            ("turn_records", TurnRecord),
         ]:
             deleted[name] = (await session.execute(delete(model))).rowcount or 0
         await session.commit()

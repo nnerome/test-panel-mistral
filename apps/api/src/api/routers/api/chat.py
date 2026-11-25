@@ -7,6 +7,7 @@ timings, intent, guardrails, correlation id), `error`, `done`."""
 
 import asyncio
 import json
+import logging
 from collections.abc import AsyncIterator
 
 from db.engine import get_session_maker
@@ -59,6 +60,10 @@ async def chat(body: ChatRequest, request: Request):
                 ),
                 emit=emit,
             )
+            # Telemetry never breaks the turn: record_turn swallows and logs its own errors.
+            from api.turnlog import record_turn
+
+            await record_turn(session_maker, result, ctx)
             for source in result.sources:
                 await queue.put({"type": "sources", "source": source})
             if result.pending_action:
