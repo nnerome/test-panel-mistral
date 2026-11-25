@@ -24,3 +24,26 @@ aux intervieweurs : visibilité contrôlée dans Studio, voir docs/DEPLOY.md). E
 une vidéo de 3 minutes du flux complet de blocage de carte (connexion → step-up → « Bloque ma carte
 de crédit » → Confirmer → carte locked) et quelques captures d'écran (FAQ citée, invite de
 connexion, carte de confirmation avec compte à rebours, panneau « Under the hood »).
+
+## Ouvrir l'accès à l'URL déployée (2026-11-24)
+
+App : `bnp-assistant` (space `01a20778-ff40-7353-a08b-b6280787a837`), URL
+`https://432ce56e-bnp-assistant-productio-91f5642c-49e7-41f9-9a-1dd862ea.apps.mistral.run`.
+Visibilité actuelle : **`workspace`** (vérifié via `GET /v1/spaces/<id>` ; un visiteur anonyme reçoit
+`401 session_expired` — testé). Le changement de visibilité se fait **dans la console Studio, pas en
+CLI ni via l'API publique** (`PATCH /v1/spaces/<id> {"visibility":"public"}` renvoie 200 mais est
+ignoré ; `mistral apps deploy` n'a pas de flag de visibilité).
+
+1. **Ouvrir la visibilité** : https://console.mistral.ai/apps/01a20778-ff40-7353-a08b-b6280787a837
+   → app **bnp-assistant** → **Settings / Partage** → Visibility : `Workspace` → `Organization`
+   (tous les membres de l'orga) ou `Public` (toute personne ayant le lien). Teste ensuite l'URL en
+   navigation privée.
+2. **Inviter les intervieweurs (garanti même en `workspace`)** : console → **Organization >
+   Workspaces > Default Workspace > Members → Invite** (leurs emails ; rôle Viewer suffisant pour
+   ouvrir l'app). La gateway fait un contrôle de membership sur `/v1/spaces/<app-id>` : une fois
+   membres, leur session Mistral ouvre l'URL directement.
+3. **Catalogue Vibe** (membres du workspace) : `mistral apps publish --alias production` depuis le
+   repo → l'app apparaît dans le catalogue Vibe, ouvrable sans partager l'URL.
+4. **Accès API** : clé API du workspace (console → API Keys) passée en en-tête `X-Api-Key`
+   (vérifié : `/api/health` → 200, `/api/chat` → 200). Pour un script, pas pour un humain.
+5. **Plan B inchangé** : `mistral dev` + partage d'écran, ou vidéo 3 min (section ci-dessus).
