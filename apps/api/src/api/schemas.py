@@ -125,3 +125,29 @@ class FeedbackView(StrictModel):
 class FeedbackList(StrictModel):
     count: int
     items: list[FeedbackView]
+
+
+# --- aggregate metrics ---------------------------------------------------------
+
+
+class StageLatency(StrictModel):
+    p50: float | None
+    p95: float | None
+    n: int
+
+
+class MetricsView(StrictModel):
+    window_minutes: int
+    since: datetime
+    turns_total: int
+    by_intent: dict[str, int]
+    refused_rate: float | None
+    human_offer_rate: float | None
+    error_rate: float | None
+    downvotes_rated: int
+    downvotes_down: int
+    downvote_rate: float | None
+    latency_ms: dict[str, StageLatency]
+    end_to_end_ms: StageLatency
+    actions: dict[str, int]
+    method: str  # percentile method, "nearest-rank"

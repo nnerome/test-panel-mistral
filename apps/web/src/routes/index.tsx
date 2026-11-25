@@ -56,6 +56,29 @@ interface Turn {
   human_offer: boolean;
   refused: boolean;
   auth_level: AuthLevel;
+  handoff_id?: string | null;
+}
+
+interface StageLatency {
+  p50: number | null;
+  p95: number | null;
+  n: number;
+}
+
+interface MetricsView {
+  window_minutes: number;
+  turns_total: number;
+  by_intent: Record<string, number>;
+  refused_rate: number | null;
+  human_offer_rate: number | null;
+  error_rate: number | null;
+  downvotes_rated: number;
+  downvotes_down: number;
+  downvote_rate: number | null;
+  latency_ms: Record<string, StageLatency>;
+  end_to_end_ms: StageLatency;
+  actions: Record<string, number>;
+  method: string;
 }
 
 interface Message {
@@ -438,6 +461,25 @@ function ChatPage() {
     }
   }
 
+  // Aggregate metrics over the last hour (reserved route: demo mode or admin token).
+  const [metrics, setMetrics] = useState<MetricsView | null>(null);
+
+  async function refreshMetrics() {
+    try {
+      setMetrics(await api<MetricsView>("/api/metrics?window_minutes=60"));
+    } catch (e) {
+      setError(String(e));
+    }
+  }
+
+  function pct(x: number | null): string {
+    return x === null ? "—" : `${(x * 100).toFixed(0)}%`;
+  }
+
+  function ms(x: StageLatency): string {
+    return x.n === 0 ? "—" : `p50 ${x.p50} / p95 ${x.p95} (n=${x.n})`;
+  }
+
   const remaining = pending ? Math.max(0, Math.floor((new Date(pending.expires_at).getTime() - now) / 1000)) : 0;
 
   return (
@@ -653,6 +695,35 @@ function ChatPage() {
               Réinitialiser la BDD (démo)
             </button>
             {resetInfo && <span className="text-brand-700">{resetInfo}</span>}
+          </div>
+        </details>
+
+        <details className="card px-3 py-2 text-xs text-ink-700">
+          <summary className="cursor-pointer font-medium">Métriques agrégées (60 min) — route réservée (démo/admin)</summary>
+          <div className="mt-2">
+            <button className="btn-ghost px-2.5! py-1!" onClick={refreshMetrics}>
+              Rafraîchir
+            </button>
+            {metrics && (
+              <div className="mt-2 overflow-x-auto">
+                <table className="w-full border-collapse text-left">
+                  <tbody>
+                    <tr><td className="pr-3 text-ink-500">tours</td><td className="font-semibold">{metrics.turns_total}</td>
+                        <td className="pr-3 text-ink-500">par intention</td><td>{JSON.stringify(metrics.by_intent)}</td></tr>
+                    <tr><td className="pr-3 text-ink-500">refus</td><td>{pct(metrics.refused_rate)}</td>
+                        <td className="pr-3 text-ink-500">escalade (conseiller)</td><td>{pct(metrics.human_offer_rate)}</td>
+                        <td className="pr-3 text-ink-500">erreurs</td><td>{pct(metrics.error_rate)}</td></tr>
+                    <tr><td className="pr-3 text-ink-500">pouces bas</td><td>{pct(metrics.downvote_rate)} ({metrics.downvotes_down}/{metrics.downvotes_rated})</td>
+                        <td className="pr-3 text-ink-500">bout en bout</td><td>{ms(metrics.end_to_end_ms)}</td></tr>
+                    {Object.entries(metrics.latency_ms).map(([stage, l]) => (
+                      <tr key={stage}><td className="pr-3 text-ink-500">{stage}</td><td colSpan={5}>{ms(l)}</td></tr>
+                    ))}
+                    <tr><td className="pr-3 text-ink-500">actions</td><td colSpan={5}>{JSON.stringify(metrics.actions)}</td></tr>
+                  </tbody>
+                </table>
+                <div className="mt-1 text-[10px] text-ink-400">percentiles : méthode {metrics.method}</div>
+              </div>
+            )}
           </div>
         </details>
 

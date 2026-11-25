@@ -26,3 +26,9 @@ async def set_status(session: AsyncSession, row: PendingAction, status: str) -> 
 
 async def expire_stale(session: AsyncSession, now: datetime) -> None:
     await session.execute(update(PendingAction).where(PendingAction.status == "pending", PendingAction.expires_at <= now).values(status="expired"))
+
+
+async def list_since(session: AsyncSession, since: datetime) -> list[PendingAction]:
+    """Pending actions created since `since` (for the metrics window)."""
+    rows = await session.execute(select(PendingAction).where(PendingAction.created_at >= since).order_by(PendingAction.created_at))
+    return list(rows.scalars().all())
