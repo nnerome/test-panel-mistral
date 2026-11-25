@@ -93,7 +93,7 @@ async def test_feedback_ok_for_own_session_turn(http, seeded) -> None:
             "correlation_id": turn["correlation_id"],
             "rating": "down",
             "reason": "wrong",
-            "comment": "ma carte 4111111111111111 a été débitée deux fois",
+            "comment": "ma carte 4111111111111111 (et 4970 1010 2020 3030) a été débitée deux fois",
             "message_excerpt": "Pourquoi ce débit ?",
             "answer_excerpt": turn["answer"][:500],
         },
@@ -107,6 +107,8 @@ async def test_feedback_ok_for_own_session_turn(http, seeded) -> None:
     assert len(rows) == 1
     row = rows[0]
     assert "4111111111111111" not in (row.comment or "")  # PAN-like run scrubbed
+    assert "4970 1010 2020 3030" not in (row.comment or "")  # spaced PAN scrubbed too
+    assert (row.comment or "").count("****") == 2
     assert "****" in row.comment
     assert row.message_excerpt == "Pourquoi ce débit ?"
     assert row.answer_excerpt is not None
