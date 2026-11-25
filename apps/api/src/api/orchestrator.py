@@ -34,6 +34,8 @@ from api.guardrails import pattern_check, run_input_guardrails
 from api.kb.retriever import Embedder
 from api.output_checks import local_output_checks, model_output_check
 
+# Canned answers are bilingual: the chat request carries the UI language (FR/EN toggle), so every
+# fixed message follows it — same for the agent's answer via apply_lang() below.
 REFUSAL_TEXT = (
     "Je ne peux pas répondre à cette demande. Si elle concerne votre compte, un conseiller peut vous aider : "
     "vous pouvez à tout moment demander à parler à un humain."
@@ -60,6 +62,42 @@ STAGE_ERROR_TEXT = (
 ACTIONS_DISABLED_TEXT = (
     "Cette opération est momentanément indisponible ; un conseiller peut vous aider."
 )
+
+_TEXTS_EN = {
+    "refusal": (
+        "I can't help with that request. If it concerns your account, an advisor can help you: "
+        "you can ask to talk to a human at any time."
+    ),
+    "login_prompt": (
+        "This question is about your account data: please sign in first (demo: one of the 3 fictional customers)."
+    ),
+    "step_up": (
+        "This action is protected: strong authentication is required. Start the step-up "
+        "(one-time code) and then confirm the proposed action."
+    ),
+    "advisor": (
+        "You can reach an advisor by phone Monday to Friday from 8:00 AM to 7:00 PM and on Saturday from 9:00 AM to 5:00 PM, "
+        "or via the secure messaging of your online banking area (reply within 24 business hours). "
+        "(source: knowledge/en/contact-advisor.md)"
+    ),
+    "out_of_scope": (
+        "I am the assistant of a demo bank: I answer public banking questions and questions about your account. "
+        "For anything else, an advisor can help you."
+    ),
+    "stage_error": (
+        "I'm experiencing a technical issue, I can put you in touch with an advisor."
+    ),
+    "actions_disabled": (
+        "This operation is temporarily unavailable; an advisor can help you."
+    ),
+}
+
+
+def canned(key: str, lang: str | None, fr_text: str) -> str:
+    """Pick the canned answer in the UI language (defaults to French)."""
+    if lang == "en":
+        return _TEXTS_EN[key]
+    return fr_text
 
 
 class StageTiming(BaseModel):
@@ -222,7 +260,7 @@ async def run_turn(
             # abort on guardrail failure: no agent call at all
             result.refused = True
             result.human_offer = True
-            result.answer = REFUSAL_TEXT
+            result.answer = canned("refusal", lang, REFUSAL_TEXT)
             await _audit_refusal(ctx, correlation_id, pattern_hit or "moderation")
             return result
 
@@ -254,7 +292,7 @@ async def run_turn(
             elif intent == "account_info":
                 if ctx is None or ctx.level == "anonymous" or ctx.customer_id is None:
                     result.needs_login = True
-                    result.answer = LOGIN_PROMPT_TEXT
+                    result.answer = canned("login_prompt", lang, LOGIN_PROMPT_TEXT)
                     return result
                 start = time.perf_counter()
                 answer, tool_calls, model, tokens = await _run_agent(make_account_agent(orch.agent_model), agent_message, session_input, emit)
@@ -263,19 +301,19 @@ async def run_turn(
             elif intent == "action":
                 if ctx is None or ctx.level == "anonymous" or ctx.customer_id is None:
                     result.needs_login = True
-                    result.answer = LOGIN_PROMPT_TEXT
+                    result.answer = canned("login_prompt", lang, LOGIN_PROMPT_TEXT)
                     return result
                 if ctx.level != "strong":
                     result.needs_step_up = True
                     result.human_offer = True
-                    result.answer = STEP_UP_TEXT
+                    result.answer = canned("step_up", lang, STEP_UP_TEXT)
                     return result
                 actions_on = orch.actions_enabled_fn() if orch.actions_enabled_fn is not None else assistant_env.actions_enabled
                 if not actions_on:
                     # kill switch: NO action agent runs at all; FAQ and account info keep working
                     result.human_offer = True
                     result.handoff_reason = "actions_disabled"
-                    result.answer = ACTIONS_DISABLED_TEXT
+                    result.answer = canned("actions_disabled", lang, ACTIONS_DISABLED_TEXT)
                     return result
                 start = time.perf_counter()
                 answer, tool_calls, model, tokens = await _run_agent(make_action_agent(orch.agent_model), agent_message, session_input, emit)
@@ -283,11 +321,11 @@ async def run_turn(
                 result.model, result.tokens = model, tokens
             elif intent == "human_request":
                 result.human_offer = True
-                result.answer = ADVISOR_TEXT
+                result.answer = canned("advisor", lang, ADVISOR_TEXT)
                 return result
             else:  # out_of_scope
                 result.human_offer = True
-                result.answer = OUT_OF_SCOPE_TEXT
+                result.answer = canned("out_of_scope", lang, OUT_OF_SCOPE_TEXT)
                 return result
 
             result.answer = answer
@@ -308,7 +346,7 @@ async def run_turn(
     except Exception as error:  # stage down (bank/model/moderation): neutral message + human offer
         result.error = type(error).__name__
         result.human_offer = True
-        result.answer = STAGE_ERROR_TEXT
+        result.answer = canned("stage_error", lang, STAGE_ERROR_TEXT)
         return result
     finally:
         result.timings = timer.timings
