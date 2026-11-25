@@ -47,3 +47,12 @@ ignoré ; `mistral apps deploy` n'a pas de flag de visibilité).
 4. **Accès API** : clé API du workspace (console → API Keys) passée en en-tête `X-Api-Key`
    (vérifié : `/api/health` → 200, `/api/chat` → 200). Pour un script, pas pour un humain.
 5. **Plan B inchangé** : `mistral dev` + partage d'écran, ou vidéo 3 min (section ci-dessus).
+
+Mise à jour 2026-11-25 : `mistral apps publish --alias production` exécuté depuis le sandbox →
+`outcome: "published"`, entrée catalogue Vibe `01a211b5-2ff4-7788-97e8-8da5dc207fc9`
+(destination = URL prod, visibility `workspace`). La visibilité du space est **en lecture seule
+via l'API** (`PATCH /v1/spaces/<id> {"visibility":"public"}` → 200 mais ignoré, reste `workspace`) et
+la page Settings de la console n'expose aucun sélecteur de visibilité (capture 2026-11-25 : seulement
+General + Delete app + boutons « Publish to Vibe » / « Open app »). Conclusion : l'URL prod n'est
+ouvrable qu'aux **membres du workspace** (invitation Admin → Members) ou via le **catalogue Vibe**
+(publié ✅) ; anonyme → 401 `session_expired` tant que la visibilité reste `workspace`.
