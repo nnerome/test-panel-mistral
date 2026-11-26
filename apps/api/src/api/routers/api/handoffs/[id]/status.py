@@ -8,7 +8,7 @@ from db import accessors as acc
 from db.engine import get_session_maker
 from fastapi import APIRouter, Path
 
-from api.auth.dependencies import AdminOrDemoDep, ClientHeaderDep
+from api.auth.dependencies import DemoModeDep, ClientHeaderDep
 from api.domain.errors import NotFoundError
 from api.routers.api.handoffs.route import HandoffStatus, _view
 from api.schemas import HandoffStatusBody, HandoffView
@@ -20,7 +20,7 @@ router = APIRouter(tags=["handoffs"])
 async def set_status(
     id: Annotated[uuid.UUID, Path()],
     body: HandoffStatusBody,
-    _a: AdminOrDemoDep,
+    _a: DemoModeDep,
     _h: ClientHeaderDep,
 ) -> HandoffView:
     """Move a handoff request to taken/closed (or back to open)."""

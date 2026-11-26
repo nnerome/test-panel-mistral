@@ -4,7 +4,6 @@ The cookie is HttpOnly + SameSite=Strict (set where the response is built); stat
 endpoints additionally require our own frontend's custom header — a cross-site form cannot
 set custom headers, which is the prototype's CSRF defence."""
 
-import hmac
 from typing import Annotated
 
 from env.assistant import env as assistant_env
@@ -71,32 +70,13 @@ async def require_client_header(
 ClientHeaderDep = Annotated[None, Depends(require_client_header)]
 
 
-async def require_admin_or_demo(
-    request: Request,
-    x_admin_token: Annotated[str | None, Header(alias="X-Admin-Token")] = None,
-) -> None:
-    """Reserved read/admin routes (metrics, feedback list, handoff queue): active only in demo
-    mode OR when X-Admin-Token matches ADMIN_TOKEN. Otherwise a uniform 404, as if the route
-    did not exist — the check never reveals whether the route is there."""
-    if assistant_env.demo_mode:
-        return
-    if assistant_env.admin_token and x_admin_token == assistant_env.admin_token:
-        return
-    raise HTTPException(status_code=404, detail={"code": "not_found", "message": "not found"})
-
-
-AdminOrDemoDep = Annotated[None, Depends(require_admin_or_demo)]
-
-
-async def require_admin_token(
-    x_admin_token: Annotated[str | None, Header(alias="X-Admin-Token")] = None,
-) -> None:
-    """Admin-only routes (demo reset, bank-flags, feature-flags): active only when X-Admin-Token
-    matches the ADMIN_TOKEN secret. Otherwise a uniform 404, as if the route did not exist.
-    Constant-time comparison; when ADMIN_TOKEN is unset no token can ever match."""
-    secret = assistant_env.admin_token
-    if not secret or not x_admin_token or not hmac.compare_digest(x_admin_token, secret):
+async def require_demo_mode() -> None:
+    """Reserved routes (metrics, feedback list, handoff queue, demo reset/flags): active only in
+    demo mode. Otherwise a uniform 404, as if the route did not exist — the check never reveals
+    whether the route is there. The prototype is an openly-labelled demo, so in demo mode these
+    routes (including the DB reset) are open to every visitor on purpose."""
+    if not assistant_env.demo_mode:
         raise HTTPException(status_code=404, detail={"code": "not_found", "message": "not found"})
 
 
-AdminTokenDep = Annotated[None, Depends(require_admin_token)]
+DemoModeDep = Annotated[None, Depends(require_demo_mode)]

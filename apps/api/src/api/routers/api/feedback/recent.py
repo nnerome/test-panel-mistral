@@ -1,4 +1,4 @@
-"""GET /api/feedback/recent — reserved route (demo mode or X-Admin-Token): recent feedback rows,
+"""GET /api/feedback/recent — reserved route (demo mode only): recent feedback rows,
 optionally filtered by rating. Aggregates for review; excerpts stay in the DB for the export
 script rather than being echoed back here."""
 
@@ -8,7 +8,7 @@ from db import accessors as acc
 from db.engine import get_session_maker
 from fastapi import APIRouter, Query
 
-from api.auth.dependencies import AdminOrDemoDep
+from api.auth.dependencies import DemoModeDep
 from api.schemas import FeedbackList, FeedbackView
 
 router = APIRouter(tags=["feedback"])
@@ -16,7 +16,7 @@ router = APIRouter(tags=["feedback"])
 
 @router.get("", operation_id="feedback_recent")
 async def recent(
-    _: AdminOrDemoDep,
+    _: DemoModeDep,
     rating: Literal["up", "down"] | None = None,
     limit: int = Query(default=50, ge=1, le=500),
 ) -> FeedbackList:

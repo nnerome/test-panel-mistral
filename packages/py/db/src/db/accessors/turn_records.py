@@ -21,6 +21,7 @@ async def record(
     timings: str,
     model: str | None,
     tokens: str | None,
+    disclaimer_shown: bool = False,
 ) -> TurnRecord:
     """Insert or update the row for this turn (idempotent on the correlation id)."""
     row = await session.get(TurnRecord, correlation_id)
@@ -36,6 +37,7 @@ async def record(
     row.timings = timings
     row.model = model
     row.tokens = tokens
+    row.disclaimer_shown = disclaimer_shown
     await session.flush()
     return row
 
@@ -47,6 +49,14 @@ async def get(session: AsyncSession, correlation_id: str) -> TurnRecord | None:
 async def list_since(session: AsyncSession, since: datetime, limit: int = 100_000) -> list[TurnRecord]:
     rows = await session.execute(select(TurnRecord).where(TurnRecord.created_at >= since).order_by(TurnRecord.created_at).limit(limit))
     return list(rows.scalars().all())
+
+
+async def count_for_session(session: AsyncSession, session_id: uuid.UUID) -> int:
+    """How many turns this session already has (used to flag the first one)."""
+    from sqlalchemy import func
+
+    result = await session.execute(select(func.count()).select_from(TurnRecord).where(TurnRecord.session_id == session_id))
+    return int(result.scalar_one())
 
 
 async def list_all(session: AsyncSession, limit: int = 100_000) -> list[TurnRecord]:

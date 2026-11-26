@@ -243,14 +243,50 @@ async def test_chat_accepts_lang_toggle(http) -> None:
     assert events["turn"][0]["turn"]["intent"] == "faq"
 
 
+async def test_turn_trace_records_ai_disclaimer_on_first_turn_of_session(http, seeded) -> None:
+    """The turn event carries disclaimer_shown=true on the session's first turn (the UI showed
+    the AI disclaimer at conversation start) and false afterwards; it lands in turn_records."""
+    client, app = http
+    _scripted(app, "faq", [agents.testing.reply("Bonjour !")])
+
+    async with client.stream("POST", "/api/chat", json={"message": "Bonjour"}) as r1:
+        assert r1.status_code == 200
+        events1 = await _read_sse(r1)
+    async with client.stream("POST", "/api/chat", json={"message": "Et ensuite ?"}) as r2:
+        events2 = await _read_sse(r2)
+
+    t1 = events1["turn"][0]["turn"]
+    t2 = events2["turn"][0]["turn"]
+    assert t1["disclaimer_shown"] is True
+    assert t2["disclaimer_shown"] is False
+    # persisted in the trace (no personal data: only the flag)
+    async with seeded() as session:
+        rows = await acc.turn_records.list_all(session)
+        by_corr = {r.correlation_id: r for r in rows}
+        assert by_corr[t1["correlation_id"]].disclaimer_shown is True
+        assert by_corr[t2["correlation_id"]].disclaimer_shown is False
+
+
+async def test_ai_identity_question_over_http(http, seeded) -> None:
+    """« Êtes-vous un humain ? » over SSE: honest answer + human_offer, no agent stage."""
+    client, app = http
+    _scripted(app, "faq", [agents.testing.reply("ne doit pas tourner")])
+    async with client.stream("POST", "/api/chat", json={"message": "Êtes-vous un humain ?"}) as r:
+        events = await _read_sse(r)
+    turn = events["turn"][0]["turn"]
+    assert turn["intent"] == "ai_identity"
+    assert "intelligence artificielle" in turn["answer"]
+    assert turn["human_offer"] is True
+    assert not any(t["stage"].startswith("agent_") for t in turn["timings"])
+
+
 async def test_demo_reset_unlocks_cards_and_clears_pending_actions(http, seeded, monkeypatch) -> None:
     from env.assistant import env as assistant_env
 
-    monkeypatch.setattr(assistant_env, "admin_token", "s3cret-admin")
     client, app = http
     res = await client.post("/api/auth/login", json={"email": "alice.demo@bank-fictive.fr", "password": "demo1234"})
     token = res.json()["token"]
-    h = {"X-Bnp-Session": token, "X-Admin-Token": "s3cret-admin", **CLIENT_HEADERS}
+    h = {"X-Bnp-Session": token, **CLIENT_HEADERS}  # demo routes are open in demo mode, no token
     code = (await client.post("/api/auth/step-up", headers=h)).json()["demo_code"]
     await client.post("/api/auth/step-up/verify", json={"code": code}, headers=h)
 

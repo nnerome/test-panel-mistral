@@ -23,6 +23,10 @@ const fr = {
   // chat
   emptyHint: "Posez une question publique (FAQ) ou connectez-vous pour gérer vos opérations courantes.",
   assistantLabel: "Assistant",
+  // AI transparency: permanent badge in the header + first message of every conversation.
+  aiBadge: "Assistant IA",
+  disclaimer:
+    "Bonjour, je suis l'assistant virtuel de BNP Paribas, une intelligence artificielle — pas une personne. Je peux répondre à vos questions et, une fois connecté, vous aider pour vos cartes. Vous pouvez demander un conseiller à tout moment.",
   sourcesLabel: (n: number) => `Sources (${n}) ▾ — citées dans le texte [n]`,
   actionConfirmed: "✓ Action confirmée — la carte est bloquée.",
   actionCancelled: "Action annulée.",
@@ -54,11 +58,8 @@ const fr = {
   otpPlaceholder: "code à 6 chiffres",
   verify: "Valider",
   inputPlaceholder: "Votre message…",
-  // demo panel (admin-token protected routes)
-  demoPanel: "Espace démo — latence / panne de la banque fictive (jeton admin requis)",
-  adminToken: "jeton admin",
-  adminTokenHint:
-    "saisissez le jeton admin pour afficher les boutons panne / reset / kill switch (routes protégées, 404 sinon)",
+  // demo panel (demo-mode routes, open to all visitors in the demo)
+  demoPanel: "Espace démo — latence / panne de la banque fictive, reset BDD, kill switch (ouvert à tous en mode démo)",
   latencyMs: "latence ms",
   failureRate: "taux d'échec",
   apply: "Appliquer",
@@ -112,6 +113,10 @@ const en: Texts = {
   // chat
   emptyHint: "Ask a public question (FAQ) or sign in to manage your everyday banking operations.",
   assistantLabel: "Assistant",
+  // AI transparency: permanent badge in the header + first message of every conversation.
+  aiBadge: "AI assistant",
+  disclaimer:
+    "Hello, I am BNP Paribas' virtual assistant, an artificial intelligence — not a person. I can answer your questions and, once signed in, help you with your cards. You can ask for a human advisor at any time.",
   sourcesLabel: (n: number) => `Sources (${n}) ▾ — cited in the text as [n]`,
   actionConfirmed: "✓ Action confirmed — the card is locked.",
   actionCancelled: "Action cancelled.",
@@ -143,11 +148,8 @@ const en: Texts = {
   otpPlaceholder: "6-digit code",
   verify: "Verify",
   inputPlaceholder: "Your message…",
-  // demo panel (admin-token protected routes)
-  demoPanel: "Demo area — fictional bank latency / outage (admin token required)",
-  adminToken: "admin token",
-  adminTokenHint:
-    "enter the admin token to show the outage / reset / kill switch buttons (protected routes, 404 otherwise)",
+  // demo panel (demo-mode routes, open to all visitors in the demo)
+  demoPanel: "Demo area — fictional bank latency / outage, DB reset, kill switch (open to all in demo mode)",
   latencyMs: "latency ms",
   failureRate: "failure rate",
   apply: "Apply",

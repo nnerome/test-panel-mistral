@@ -147,6 +147,21 @@ describe("the root screens", () => {
     expect(screen.getByText(/fictional demo — invented data/)).toBeTruthy();
   });
 
+  test("the AI disclaimer is the first message and the header badge follows the FR/EN toggle", async () => {
+    renderRoot(home(), french(), { locale: "fr" });
+
+    // permanent "Assistant IA" badge in the header (visible before any login)
+    await screen.findAllByText("Assistant IA");
+    // first message of the conversation, in French, clearly says it is an AI
+    await screen.findByText(/je suis l'assistant virtuel de BNP Paribas, une intelligence artificielle/);
+
+    fireEvent.click(screen.getByRole("button", { name: "EN" }));
+    // badge + disclaimer switch to English
+    await screen.findAllByText("AI assistant");
+    await screen.findByText(/I am BNP Paribas' virtual assistant, an artificial intelligence/);
+    expect(screen.queryByText(/intelligence artificielle/)).toBeNull();
+  });
+
   test("a source's own screens replace the plain ones, and the home page still renders", async () => {
     const source = french({
       NotFound: ({ texts }) => <h1>{`404 · ${texts.notFound}`}</h1>,

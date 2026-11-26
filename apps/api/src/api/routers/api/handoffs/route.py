@@ -1,4 +1,4 @@
-"""GET /api/handoffs — the advisor queue. Reserved route: demo mode or X-Admin-Token, else 404."""
+"""GET /api/handoffs — the advisor queue. Reserved route: demo mode only, else 404."""
 
 import uuid
 from typing import Literal
@@ -7,7 +7,7 @@ from db import accessors as acc
 from db.engine import get_session_maker
 from fastapi import APIRouter, Query
 
-from api.auth.dependencies import AdminOrDemoDep
+from api.auth.dependencies import DemoModeDep
 from api.schemas import HandoffList, HandoffView
 
 router = APIRouter(tags=["handoffs"])
@@ -17,7 +17,7 @@ HandoffStatus = Literal["open", "taken", "closed"]
 
 @router.get("", operation_id="handoffs_list")
 async def list_handoffs(
-    _: AdminOrDemoDep,
+    _: DemoModeDep,
     status: HandoffStatus | None = "open",
     limit: int = Query(default=100, ge=1, le=500),
 ) -> HandoffList:

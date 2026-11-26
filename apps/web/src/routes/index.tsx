@@ -108,10 +108,6 @@ const CLIENT_HEADERS = { "X-Bnp-Client": "bnp-assistant-web" };
 // Studio gateway the module's Set-Cookie may not reach the browser, so the cookie alone is not
 // enough there (locally, it is).
 let SESSION_TOKEN: string | null = null;
-// Admin token for the protected demo routes (reset, bank-flags, feature-flags). Kept in memory
-// only, never persisted: the demo panel shows the protected buttons only while it is set.
-let ADMIN_TOKEN: string | null = null;
-
 async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const res = await fetch(path, {
     credentials: "same-origin",
@@ -120,7 +116,6 @@ async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
       "Content-Type": "application/json",
       ...CLIENT_HEADERS,
       ...(SESSION_TOKEN ? { "X-Bnp-Session": SESSION_TOKEN } : {}),
-      ...(ADMIN_TOKEN ? { "X-Admin-Token": ADMIN_TOKEN } : {}),
       ...(init.headers ?? {}),
     },
   });
@@ -211,12 +206,6 @@ function ChatPage() {
   const [flags, setFlags] = useState({ latency_ms: 0, failure_rate: 0 });
   const [latencyInput, setLatencyInput] = useState("0");
   const [failureInput, setFailureInput] = useState("0");
-  // Admin token typed in the demo panel (memory only): gates the protected demo buttons below.
-  const [adminToken, setAdminToken] = useState("");
-  function onAdminTokenChange(v: string) {
-    setAdminToken(v);
-    ADMIN_TOKEN = v.trim() ? v.trim() : null;
-  }
   const [error, setError] = useState<string | null>(null);
   const [lang, setLang] = useState<Lang>("fr");
   const t = TEXTS[lang];
@@ -464,15 +453,13 @@ function ChatPage() {
     }
   }
 
-  // Aggregate metrics over the last hour (reserved route: demo mode or admin token).
+  // Aggregate metrics over the last hour (reserved route: demo mode only).
   const [metrics, setMetrics] = useState<MetricsView | null>(null);
   // Actions kill switch (runtime feature flag, hot-toggled via /api/demo/feature-flags).
   const [actionsEnabled, setActionsEnabled] = useState(true);
 
-  // Bank-flags and feature-flags are admin-token protected routes: only fetch them once a
-  // token has been entered in the demo panel.
+  // Bank-flags and feature-flags are demo-mode routes, open to every visitor in the demo.
   useEffect(() => {
-    if (!adminToken.trim()) return;
     api<{ latency_ms: number; failure_rate: number }>("/api/demo/bank-flags")
       .then((f) => {
         setFlags(f);
@@ -483,7 +470,7 @@ function ChatPage() {
     api<{ actions_enabled: boolean }>("/api/demo/feature-flags")
       .then((f) => setActionsEnabled(f.actions_enabled))
       .catch(() => {});
-  }, [adminToken]);
+  }, []);
 
   async function toggleActions() {
     try {
@@ -513,7 +500,7 @@ function ChatPage() {
     return x.n === 0 ? "—" : `p50 ${x.p50} / p95 ${x.p95} (n=${x.n})`;
   }
 
-  // Advisor queue (reserved route: demo mode or admin token).
+  // Advisor queue (reserved route: demo mode only).
   const [handoffs, setHandoffs] = useState<HandoffView[] | null>(null);
 
   async function refreshHandoffs() {
@@ -556,6 +543,7 @@ function ChatPage() {
             {t.level[session?.level ?? "anonymous"]}
             {session?.customer_name ? ` · ${session.customer_name}` : ""}
           </span>
+          <span className="badge border border-brand-300 bg-brand-700 text-brand-100">{t.aiBadge}</span>
           <div className="ml-auto flex flex-wrap items-center gap-2">
             <div className="flex overflow-hidden rounded-lg border border-white/25 text-xs font-semibold" title={t.langToggleTitle}>
               <button
@@ -604,6 +592,17 @@ function ChatPage() {
         {error && <div className="notice border-red-300 bg-red-50 text-red-700">{error}</div>}
 
         <div ref={scrollRef} className="card flex min-h-64 flex-1 flex-col gap-3 overflow-y-auto p-4">
+          <div className="max-w-[85%] self-start">
+            <div className="mb-1 flex items-center gap-1.5 text-[11px] font-medium text-ink-500">
+              <span className="h-5 w-5 rounded-full bg-ink-700 text-center text-[9px] font-bold leading-5 text-white">
+                IA
+              </span>
+              {t.aiBadge}
+            </div>
+            <div className="rounded-2xl rounded-tl-md border border-brand-300 bg-brand-50 px-3.5 py-2.5 text-sm text-ink-800 shadow-card">
+              {t.disclaimer}
+            </div>
+          </div>
           {messages.length === 0 && (
             <div className="m-auto max-w-sm text-center text-sm text-ink-500">
               {t.emptyHint}
@@ -739,23 +738,6 @@ function ChatPage() {
           <summary className="cursor-pointer font-medium">{t.demoPanel}</summary>
           <div className="mt-2 flex flex-wrap items-center gap-3">
             <label className="flex items-center gap-1.5">
-              {t.adminToken}
-              <input
-                className="input w-44 px-2! py-1! font-mono"
-                type="password"
-                autoComplete="off"
-                placeholder="X-Admin-Token"
-                value={adminToken}
-                onChange={(e) => onAdminTokenChange(e.target.value)}
-              />
-            </label>
-            {!adminToken.trim() ? (
-              <span className="text-ink-500">
-                {t.adminTokenHint}
-              </span>
-            ) : (
-              <>
-            <label className="flex items-center gap-1.5">
               {t.latencyMs}
               <input className="input w-20 px-2! py-1!" value={latencyInput} onChange={(e) => setLatencyInput(e.target.value)} />
             </label>
@@ -779,8 +761,6 @@ function ChatPage() {
             </button>
             <span className="text-ink-500">{t.actionsState(actionsEnabled)}</span>
             {resetInfo && <span className="text-brand-700">{resetInfo}</span>}
-              </>
-            )}
           </div>
         </details>
 

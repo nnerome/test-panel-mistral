@@ -1,5 +1,5 @@
 """Metrics endpoint tests: hand-computed nearest-rank percentiles on a synthetic turn set,
-empty window -> nulls, reserved route (404 without demo mode / admin token), and the response
+empty window -> nulls, reserved route (404 when demo mode is off), and the response
 never carries message or answer content."""
 
 import asyncio
@@ -126,9 +126,10 @@ async def test_metrics_empty_window_returns_nulls(http) -> None:
 async def test_metrics_route_is_reserved(http, monkeypatch) -> None:
     client, app = http
     monkeypatch.setattr(assistant_env, "demo_mode", False)
-    monkeypatch.setattr(assistant_env, "admin_token", None)
     assert (await client.get("/api/metrics")).status_code == 404
-    monkeypatch.setattr(assistant_env, "admin_token", "s3cret-admin")
-    assert (await client.get("/api/metrics")).status_code == 404  # no header
-    res = await client.get("/api/metrics", headers={"X-Admin-Token": "s3cret-admin"})
+    # token headers are gone: demo mode is the only gate, with or without any header
+    res = await client.get("/api/metrics", headers={"X-Admin-Token": "whatever"})
+    assert res.status_code == 404
+    monkeypatch.setattr(assistant_env, "demo_mode", True)
+    res = await client.get("/api/metrics")
     assert res.status_code == 200

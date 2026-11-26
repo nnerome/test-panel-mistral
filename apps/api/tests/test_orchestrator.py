@@ -14,7 +14,7 @@ from api.auth import service
 from api.bank import seed
 from api.bank.mock import BankFlags, MockBank
 from api.kb.retriever import FakeEmbedder
-from api.orchestrator import LOGIN_PROMPT_TEXT, REFUSAL_TEXT, _TEXTS_EN, OrchestratorDeps, run_turn
+from api.orchestrator import AI_IDENTITY_TEXT, LOGIN_PROMPT_TEXT, REFUSAL_TEXT, _TEXTS_EN, OrchestratorDeps, run_turn
 
 
 def _bank(seeded):
@@ -191,3 +191,28 @@ async def test_canned_answers_follow_request_language(seeded) -> None:
         assert result.answer == LOGIN_PROMPT_TEXT
         result = await run_turn(inj, None, orch=_orch(seeded, None, "action"), lang=lang)
         assert result.answer == REFUSAL_TEXT
+
+
+async def test_ai_identity_question_gets_honest_answer_without_agent(seeded) -> None:
+    # FR: deterministic answer, no model call, human offer — the assistant never claims to be human
+    model = agents.testing.ScriptedModel([agents.testing.reply("ne doit pas tourner")])
+    result = await run_turn("Êtes-vous un humain ?", None, orch=_orch(seeded, model, "faq"))
+    assert result.intent == "ai_identity"
+    assert result.answer == AI_IDENTITY_TEXT
+    assert "intelligence artificielle" in result.answer
+    assert result.human_offer is True and result.refused is False
+    assert not any(t.stage.startswith("agent_") for t in result.timings), "no agent call for identity questions"
+
+    # EN follows the request language
+    result = await run_turn("are you an AI?", None, orch=_orch(seeded, model, "faq"), lang="en")
+    assert result.intent == "ai_identity"
+    assert result.answer == _TEXTS_EN["ai_identity"]
+    assert "artificial intelligence" in result.answer
+
+
+async def test_ordinary_questions_are_not_intercepted_as_ai_identity(seeded) -> None:
+    model = agents.testing.ScriptedModel([agents.testing.reply("ok")])
+    result = await run_turn("Êtes-vous ouvert le samedi ?", None, orch=_orch(seeded, model, "faq"))
+    assert result.intent == "faq"  # routed normally, agent ran
+    assert any(t.stage == "agent_faq" for t in result.timings)
+    model.assert_consumed()

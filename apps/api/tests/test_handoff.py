@@ -1,6 +1,6 @@
 """Handoff tests: automatic creation on human_offer (one open per session+reason, no duplicates),
 deterministic scrubbed summary with the pending action referenced, handoff_id in the turn, and
-the reserved queue routes (404 without demo/admin, status transitions)."""
+the reserved queue routes (404 when demo mode is off, status transitions)."""
 
 import asyncio
 import json
@@ -168,9 +168,9 @@ async def test_handoff_routes_reserved_and_status_transitions(http, seeded, monk
     turn = await _chat(client, app, "Parler à un humain")
     hid = turn["handoff_id"]
 
-    # reserved: demo off, no admin token -> 404 on both routes
+    # reserved: demo off -> uniform 404 on both routes (any header is irrelevant now)
     monkeypatch.setattr(assistant_env, "demo_mode", False)
-    monkeypatch.setattr(assistant_env, "admin_token", None)
+    assert (await client.get("/api/handoffs", headers={"X-Admin-Token": "whatever"})).status_code == 404
     assert (await client.get("/api/handoffs")).status_code == 404
     assert (await client.post(f"/api/handoffs/{hid}/status", json={"status": "taken"}, headers=CLIENT_HEADERS)).status_code == 404
 

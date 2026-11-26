@@ -48,10 +48,9 @@ class Env(BaseEnv):
     # Demo endpoints (customer list with password hint, live bank-fault toggles) exist only in
     # demo mode; set false in any real deployment so /api/demo/* answers 404.
     demo_mode: bool = True
-    # Reserved read/admin routes (metrics, feedback list, handoff queue) are active in demo mode
-    # OR when the X-Admin-Token header matches ADMIN_TOKEN; otherwise they answer a uniform 404.
-    # Optional: unset disables the token path entirely (demo mode only).
-    admin_token: str | None = None
+    # Reserved routes (metrics, feedback list, handoff queue, /api/demo/* incl. the DB reset) are
+    # active in demo mode only; otherwise they answer a uniform 404. The demo is openly labelled
+    # and uses fake data, so in demo mode they are open to every visitor on purpose.
     # Kill switch for state-changing actions (lock card). When false, no action agent runs and
     # confirm refuses with actions_disabled. Hot-togglable in demo mode via /api/demo/feature-flags.
     actions_enabled: bool = True

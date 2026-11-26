@@ -30,7 +30,7 @@ from api.agents.inputs import BankSessionInput
 from api.auth.service import SessionContext
 from api.bank.protocol import Bank
 from api.classify import classify_intent
-from api.guardrails import pattern_check, run_input_guardrails
+from api.guardrails import ai_identity_check, pattern_check, run_input_guardrails
 from api.kb.retriever import Embedder
 from api.output_checks import local_output_checks, model_output_check
 
@@ -62,6 +62,13 @@ STAGE_ERROR_TEXT = (
 ACTIONS_DISABLED_TEXT = (
     "Cette opération est momentanément indisponible ; un conseiller peut vous aider."
 )
+# AI transparency: the assistant never presents itself as a person. Asked "êtes-vous un humain ?"
+# it answers honestly and offers a human advisor.
+AI_IDENTITY_TEXT = (
+    "Je suis un assistant virtuel, une intelligence artificielle — pas une personne. "
+    "Je peux répondre à vos questions et, une fois connecté, vous aider pour vos cartes. "
+    "Vous pouvez demander un conseiller à tout moment."
+)
 
 _TEXTS_EN = {
     "refusal": (
@@ -89,6 +96,11 @@ _TEXTS_EN = {
     ),
     "actions_disabled": (
         "This operation is temporarily unavailable; an advisor can help you."
+    ),
+    "ai_identity": (
+        "I am a virtual assistant, an artificial intelligence — not a person. "
+        "I can answer your questions and, once signed in, help you with your cards. "
+        "You can ask for a human advisor at any time."
     ),
 }
 
@@ -127,6 +139,9 @@ class TurnResult(BaseModel):
     tokens: dict | None = None
     handoff_id: str | None = None  # set by the chat route when a handoff request was created
     handoff_reason: str | None = None  # explicit handoff reason override (e.g. actions_disabled)
+    # True on the first recorded turn of a session: the UI shows the AI disclaimer at the start
+    # of every conversation, and the trace records that it was shown (no personal data).
+    disclaimer_shown: bool = False
 
 
 @dataclass
@@ -262,6 +277,14 @@ async def run_turn(
             result.human_offer = True
             result.answer = canned("refusal", lang, REFUSAL_TEXT)
             await _audit_refusal(ctx, correlation_id, pattern_hit or "moderation")
+            return result
+
+        # AI transparency: "êtes-vous un humain ?" gets an honest, deterministic answer —
+        # no model call, so it can never claim to be a person — plus a human offer.
+        if ai_identity_check(message):
+            result.intent = "ai_identity"
+            result.human_offer = True
+            result.answer = canned("ai_identity", lang, AI_IDENTITY_TEXT)
             return result
 
         # --- stage 3: route ----------------------------------------------------------

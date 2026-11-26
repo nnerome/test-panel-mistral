@@ -165,23 +165,17 @@ async def _chat(client, app, message) -> dict:
 async def test_demo_feature_flags_toggle_and_chat_effect(http, seeded, monkeypatch) -> None:
     from env.assistant import env as assistant_env
 
-    monkeypatch.setattr(assistant_env, "admin_token", "s3cret-admin")
-    ADMIN = {"X-Admin-Token": "s3cret-admin"}
     client, app = http
-    # initial state from env default (admin token required on this route now)
-    res = await client.get("/api/demo/feature-flags", headers=ADMIN)
+    # demo mode is on: the route is open, no admin token exists anymore
+    res = await client.get("/api/demo/feature-flags")
     assert res.status_code == 200 and res.json()["actions_enabled"] is True
 
-    # toggle off (client header + admin token required)
+    # toggle off (client header required for this state-changing route, nothing else)
     res = await client.post("/api/demo/feature-flags", json={"actions_enabled": False})
     assert res.status_code == 403  # missing X-Bnp-Client (client-header check fires first)
     res = await client.post("/api/demo/feature-flags", json={"actions_enabled": False}, headers=CLIENT_HEADERS)
-    assert res.status_code == 404  # client header alone is not enough: uniform 404 without admin token
-    res = await client.post("/api/demo/feature-flags", json={"actions_enabled": False}, headers={**CLIENT_HEADERS, "X-Admin-Token": "wrong"})
-    assert res.status_code == 404  # wrong admin token -> same uniform 404
-    res = await client.post("/api/demo/feature-flags", json={"actions_enabled": False}, headers={**CLIENT_HEADERS, **ADMIN})
     assert res.status_code == 200 and res.json()["actions_enabled"] is False
-    assert (await client.get("/api/demo/feature-flags", headers=ADMIN)).json()["actions_enabled"] is False
+    assert (await client.get("/api/demo/feature-flags")).json()["actions_enabled"] is False
 
     # strong session, then an action turn while disabled -> no agent, clear message
     await client.post("/api/auth/login", json={"email": "bob.demo@bank-fictive.fr", "password": "demo1234"})
@@ -194,7 +188,7 @@ async def test_demo_feature_flags_toggle_and_chat_effect(http, seeded, monkeypat
     assert not any(t["stage"].startswith("agent_") for t in turn["timings"])
 
     # toggle back on -> the action agent runs and proposes
-    await client.post("/api/demo/feature-flags", json={"actions_enabled": True}, headers={**CLIENT_HEADERS, **ADMIN})
+    await client.post("/api/demo/feature-flags", json={"actions_enabled": True}, headers=CLIENT_HEADERS)
     _scripted(app, "action", [agents.testing.call("propose_lock_card", card_label="9012"), agents.testing.reply("Proposition enregistrée.")])
     turn = await _chat(client, app, "Bloque ma carte de crédit")
     assert turn["pending_action"] is not None

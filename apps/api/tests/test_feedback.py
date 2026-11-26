@@ -177,20 +177,19 @@ async def test_feedback_recent_is_reserved(http, seeded, monkeypatch) -> None:
     turn = await _chat_turn(client, app)
     await client.post("/api/feedback", json={"correlation_id": turn["correlation_id"], "rating": "down", "reason": "other"}, headers=CLIENT_HEADERS)
 
-    # demo off, no admin token -> uniform 404
+    # demo off -> uniform 404, whatever the headers (no admin-token path anymore)
     monkeypatch.setattr(assistant_env, "demo_mode", False)
-    monkeypatch.setattr(assistant_env, "admin_token", None)
     res = await client.get("/api/feedback/recent")
     assert res.status_code == 404
+    res = await client.get("/api/feedback/recent", headers={"X-Admin-Token": "whatever"})
+    assert res.status_code == 404
 
-    # admin token path -> 200
-    monkeypatch.setattr(assistant_env, "admin_token", "s3cret-admin")
+    # demo on -> open to every visitor, no token needed
+    monkeypatch.setattr(assistant_env, "demo_mode", True)
     res = await client.get("/api/feedback/recent")
-    assert res.status_code == 404  # missing header
-    res = await client.get("/api/feedback/recent", headers={"X-Admin-Token": "s3cret-admin"})
     assert res.status_code == 200
     body = res.json()
     assert body["count"] == 1 and body["items"][0]["rating"] == "down"
     # rating filter
-    res = await client.get("/api/feedback/recent?rating=up", headers={"X-Admin-Token": "s3cret-admin"})
+    res = await client.get("/api/feedback/recent?rating=up")
     assert res.json()["count"] == 0

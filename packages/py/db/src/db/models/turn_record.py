@@ -26,4 +26,6 @@ class TurnRecord(SQLModel, table=True):
     timings: str = Field(default="[]")  # JSON list of {"stage": str, "ms": float}
     model: str | None = Field(default=None, max_length=100)  # null when the API returns none
     tokens: str | None = Field(default=None)  # JSON usage object, null when unavailable
+    # True on the first turn of a session: the AI disclaimer was displayed at conversation start.
+    disclaimer_shown: bool = Field(default=False)
     created_at: datetime = Field(default_factory=utcnow, sa_type=DateTime(timezone=True))

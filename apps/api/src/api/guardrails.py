@@ -40,6 +40,25 @@ def pattern_check(text: str) -> str | None:
     return None
 
 
+# "Are you a human / an AI?" phrasings, FR + EN. These are NOT refused: the assistant answers
+# honestly that it is an AI (see orchestrator's ai_identity canned answer) and offers a human
+# advisor. Matched case-insensitively.
+AI_IDENTITY_PATTERNS = [
+    r"\b([eê]tes[- ]vous|es[- ]tu|t[' ]es)\b.{0,40}?\b(humain|humans|personne|robot|bot|ia|intelligence artificielle|artificial intelligence|ai|machine|réel|real|human)\b",
+    r"\bare\s+you\s+(a\s+|an\s+)?(human|robot|bot|ai|artificial\s+intelligence|real|person|machine)\b",
+    r"\bare\s+you\s+(human|an\s+ai|real|alive)\b",
+    r"\b(es-tu|êtes-vous)\s+(une?\s+)?(ia|intelligence artificielle)\b",
+    r"\bqui\s+es[- ]tu\b.{0,30}?\b(humain|robot|ia|bot)\b",
+]
+
+_AI_COMPILED = [re.compile(p, re.IGNORECASE) for p in AI_IDENTITY_PATTERNS]
+
+
+def ai_identity_check(text: str) -> bool:
+    """True when the customer asks whether the assistant is a human / an AI."""
+    return any(p.search(text) for p in _AI_COMPILED)
+
+
 # Moderation categories that hard-refuse a turn. `law`, `financial` and `health` are deliberately
 # NOT blocking: for a retail-bank FAQ they fire on legitimate in-domain questions ("contester un
 # prélèvement", "plafond d'un virement", "fraude") which the knowledge base answers — out-of-scope

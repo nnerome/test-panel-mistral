@@ -43,11 +43,13 @@ Nouvelles tables : `turn_records` (un tour = une ligne, **jamais de texte de mes
   **uniquement si rating = "down"**) passent par `scrub_secrets` (masque les suites de 13-19 chiffres,
   donc aucun PAN complet) + troncature côté route avant écriture. Le listing `/api/feedback/recent`
   n'écho pas les excerpts (ils restent en DB pour `evals/export_feedback.py` uniquement).
-- **Routes réservées** (`/api/metrics`, `/api/feedback/recent`, `/api/handoffs*`) : actives si
-  `DEMO_MODE=true` **ou** si l'en-tête `X-Admin-Token` == `ADMIN_TOKEN` (optionnel) ; sinon **404
-  uniforme** (jamais 403, pour ne pas révéler l'existence de la route). `POST` à état exigent en plus
-  `X-Bnp-Client` (défense CSRF existante). `/api/metrics` ne renvoie que des agrégats (test :
-  aucun contenu de message dans la réponse).
+- **Routes réservées** (`/api/metrics`, `/api/feedback/recent`, `/api/handoffs*`, `/api/demo/*`
+  **incluant le reset BDD**) : actives si `DEMO_MODE=true`, sinon **404 uniforme** (jamais 403,
+  pour ne pas révéler l'existence de la route). Le jeton admin (`X-Admin-Token`/`ADMIN_TOKEN`) a été
+  **supprimé** : le prototype est une démo ouverte et clairement étiquetée, avec données fictives
+  uniquement, donc en mode démo ces routes — y compris `POST /api/demo/reset` — sont ouvertes à
+  tous les visiteurs (les `POST` à état exigent toujours l'en-tête `X-Bnp-Client`, défense CSRF).
+  `/api/metrics` ne renvoie que des agrégats (test : aucun contenu de message dans la réponse).
 - **Kill switch `ACTIONS_ENABLED`** : à chaud via `POST /api/demo/feature-flags` (démo uniquement),
   stocké sur `app.state`. Coupé : aucun agent d'action ne tourne (aucun stage `agent_*` dans les
   timings) et `confirm_action` refuse avec `actions_disabled` **sans toucher au statut** de l'action
@@ -59,5 +61,13 @@ Nouvelles tables : `turn_records` (un tour = une ligne, **jamais de texte de mes
 - **Durée de conservation** : aucune purge automatique dans le prototype — `POST /api/demo/reset`
   efface `turn_records`, `feedback` et `handoff_requests` avec le reste de l'état démo. En prod
   réelle, définir une rétention (ex. 30-90 jours) sur ces tables.
+- **Transparence IA** : chaque conversation affiche en premier message un disclaimer (FR/EN selon
+  le toggle) indiquant que l'assistant est une IA, jamais une personne (pas de prénom ni photo) ;
+  un badge « Assistant IA » reste visible dans l'en-tête ; « êtes-vous un humain ? » reçoit une
+  réponse honnête déterministe (interception par pattern, **aucun appel modèle**, `human_offer=true`) ;
+  le premier tour de chaque session est marqué `disclaimer_shown=true` dans `turn_records` (aucune
+  donnée personnelle) et visible dans le panneau « under the hood ». Tous les textes sont centralisés
+  (`apps/web/src/i18n.ts` côté UI, constantes `*_TEXT`/`_TEXTS_EN` côté orchestrateur).
 - **Hors périmètre** : pas de chiffrement au repos applicatif, pas de rate-limit par session sur
-  `/api/feedback`, pas de signature des métriques, pas de revue d'accès périodique des admin tokens.
+  `/api/feedback`, pas de signature des métriques. En prod réelle, prévoir une rétention et un
+  contrôle d'accès sur les routes réservées (hors démo).
